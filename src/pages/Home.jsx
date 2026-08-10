@@ -311,7 +311,9 @@ export default function Home() {
         @media(max-width:900px){
           .hero-grid{grid-template-columns:1fr;text-align:center;gap:2rem}
           .hero-sub{max-width:100%} .hero-actions{justify-content:center} .trust-badges{justify-content:center}
-          .hero-visual{display:none} .stats-grid{grid-template-columns:repeat(2,1fr)}
+          .hero-visual{display:block;margin-top:1.5rem;max-width:500px;margin-left:auto;margin-right:auto}
+          .fc-top{top:-10px;left:0} .fc-bottom{bottom:-10px;right:0}
+          .stats-grid{grid-template-columns:repeat(2,1fr)}
           .cuisines-grid{grid-template-columns:repeat(4,1fr)} .steps-grid{grid-template-columns:1fr}
           .features-grid{grid-template-columns:repeat(2,1fr)} .reviews-grid{grid-template-columns:1fr}
         }
