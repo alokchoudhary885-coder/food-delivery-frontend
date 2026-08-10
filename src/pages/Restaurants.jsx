@@ -94,12 +94,13 @@ export default function Restaurants() {
       return toast.error('Voice search is not supported in this browser');
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
+    recognition.lang = 'en-US';
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setListening(true);
-      toast.loading('🎙️ Sun raha hoon... Bolye!', { id: 'voice-toast' });
+      toast.loading('🎙️ Sun raha hoon... Bolye! (e.g. Dominos)', { id: 'voice-toast' });
     };
 
     recognition.onresult = (e) => {
@@ -111,12 +112,24 @@ export default function Restaurants() {
       fetchRestaurants(1, { name: text, city, cuisine, minRating });
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (err) => {
       setListening(false);
-      toast.error('Voice samajh nahi aayi, try again', { id: 'voice-toast' });
+      if (err.error === 'not-allowed') {
+        toast.error('Mic permission block hai! Browser top bar mein Mic ALLOW karo 🎙️', { id: 'voice-toast', duration: 5000 });
+      } else {
+        toast.error('Voice samajh nahi aayi, dobara boliye', { id: 'voice-toast' });
+      }
     };
 
-    recognition.start();
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+    }
   };
 
   const hasActiveFilters = search || city || cuisine || minRating;
