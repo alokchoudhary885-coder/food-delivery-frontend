@@ -87,6 +87,37 @@ export default function Restaurants() {
     );
   };
 
+  const handleVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return toast.error('Voice search is not supported in this browser');
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setListening(true);
+      toast.loading('🎙️ Sun raha hoon... Bolye!', { id: 'voice-toast' });
+    };
+
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      setSearch(text);
+      setListening(false);
+      toast.success(`🔍 "${text}" search ho raha hai`, { id: 'voice-toast' });
+      setPage(1);
+      fetchRestaurants(1, { name: text, city, cuisine, minRating });
+    };
+
+    recognition.onerror = () => {
+      setListening(false);
+      toast.error('Voice samajh nahi aayi, try again', { id: 'voice-toast' });
+    };
+
+    recognition.start();
+  };
+
   const hasActiveFilters = search || city || cuisine || minRating;
 
   return (
@@ -113,15 +144,25 @@ export default function Restaurants() {
 
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="search-row">
-            <input
-              id="restaurant-search"
-              type="text"
-              className="form-input"
-              placeholder="🔍  Restaurant name dhundho..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1 }}
-            />
+            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+              <input
+                id="restaurant-search"
+                type="text"
+                className="form-input"
+                placeholder="🔍  Restaurant name dhundho..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ flex: 1, paddingRight: '46px' }}
+              />
+              <button
+                type="button"
+                className={`voice-mic-btn ${listening ? 'listening' : ''}`}
+                onClick={handleVoiceSearch}
+                title="Bol kar search karo 🎙️"
+              >
+                🎙️
+              </button>
+            </div>
             <button type="submit" className="btn btn-primary" id="search-btn">Search</button>
             <button
               type="button"
@@ -246,6 +287,17 @@ export default function Restaurants() {
 
       <style>{`
         .search-row { display: flex; gap: 10px; margin-bottom: 1rem; }
+        .voice-mic-btn {
+          position: absolute; right: 10px; background: none; border: none;
+          font-size: 1.2rem; cursor: pointer; padding: 6px; border-radius: 50%;
+          transition: transform 0.2s, background 0.2s;
+        }
+        .voice-mic-btn:hover { transform: scale(1.15); background: rgba(255,107,53,0.15); }
+        .voice-mic-btn.listening { animation: pulseMic 1s infinite alternate; }
+        @keyframes pulseMic {
+          0% { transform: scale(1); filter: drop-shadow(0 0 4px #FF6B35); }
+          100% { transform: scale(1.3); filter: drop-shadow(0 0 12px #FF6B35); }
+        }
         .filter-dot {
           display: inline-block; width: 6px; height: 6px;
           border-radius: 50%; background: var(--color-orange); margin-left: 4px;
