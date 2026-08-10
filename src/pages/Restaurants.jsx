@@ -22,6 +22,7 @@ export default function Restaurants() {
   const [showFilters, setShowFilters]   = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating]         = useState(false);
+  const [listening, setListening]       = useState(false);
 
   const fetchRestaurants = async (pageNum = 1, filters = {}) => {
     setLoading(true);
