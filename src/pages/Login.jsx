@@ -13,7 +13,7 @@ import {
 } from '../config/firebase';
 
 export default function Login() {
-  const [loginMethod, setLoginMethod] = useState('otp'); // Default to 'otp' (Zomato/Swiggy style) or 'email'
+  const [loginMethod, setLoginMethod] = useState('otp');
   const [form, setForm]               = useState({ email: '', password: '' });
   const [phone, setPhone]             = useState('');
   const [otpDigits, setOtpDigits]     = useState(['', '', '', '', '', '']);
@@ -48,9 +48,7 @@ export default function Login() {
         {
           size: 'invisible',
           callback: () => {},
-          'expired-callback': () => {
-            toast.error('reCAPTCHA expired. Please try again.');
-          },
+          'expired-callback': () => {},
         }
       );
     }
@@ -60,8 +58,10 @@ export default function Login() {
   // Handle Real Google OAuth Login
   const handleGoogleLogin = async () => {
     setLoading(true);
-    try {
-      if (isFirebaseKeyValid) {
+    let firebaseSuccess = false;
+
+    if (isFirebaseKeyValid) {
+      try {
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
         const idToken = await user.getIdToken();
@@ -78,24 +78,24 @@ export default function Login() {
         login(data.data.user, data.data.token);
         toast.success(`Welcome, ${data.data.user.name || 'User'}! Signed in with Google 🎉`);
         return navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      } catch (fbErr) {
+        console.warn('Firebase Google Auth failed, falling back to Backend:', fbErr);
       }
+    }
 
-      // Backend Fallback
-      const userEmail = prompt('Enter your Google Email address to login:');
-      if (!userEmail || !userEmail.includes('@')) return;
-      const { data } = await api.post('/auth/google', { email: userEmail, name: userEmail.split('@')[0] });
-      login(data.data.user, data.data.token);
-      toast.success(`Google Account Signed In: ${userEmail} 🌐`);
-      navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
-    } catch (err) {
-      console.error('Google Auth Error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        toast.error('Google login popup was closed.');
-      } else {
-        toast.error(err.response?.data?.message || err.message || 'Google OAuth Sign-In failed.');
+    if (!firebaseSuccess) {
+      try {
+        const userEmail = prompt('Enter your Google Email address to login:');
+        if (!userEmail || !userEmail.includes('@')) return;
+        const { data } = await api.post('/auth/google', { email: userEmail, name: userEmail.split('@')[0] });
+        login(data.data.user, data.data.token);
+        toast.success(`Google Account Signed In: ${userEmail} 🌐`);
+        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Google Sign-In failed.');
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -108,8 +108,10 @@ export default function Login() {
     }
 
     setLoading(true);
-    try {
-      if (isFirebaseKeyValid) {
+    let firebaseSuccess = false;
+
+    if (isFirebaseKeyValid) {
+      try {
         const verifier = getRecaptchaVerifier();
         const formattedPhone = `+91${cleanPhone}`;
         const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
@@ -117,24 +119,28 @@ export default function Login() {
         setOtpSent(true);
         setTimer(30);
         toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-        return;
+        firebaseSuccess = true;
+      } catch (fbErr) {
+        console.warn('Firebase SMS failed, falling back to Backend OTP:', fbErr);
+        if (window.recaptchaVerifier) {
+          try { window.recaptchaVerifier.clear(); } catch {}
+          window.recaptchaVerifier = null;
+        }
       }
-
-      // Backend Production OTP Service
-      const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
-      setOtpSent(true);
-      setTimer(30);
-      toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲 (OTP: ${data.data?.otp || '123456'})`);
-    } catch (err) {
-      console.error('SMS OTP Error:', err);
-      if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear(); } catch {}
-        window.recaptchaVerifier = null;
-      }
-      toast.error(err.response?.data?.message || err.message || 'Failed to send SMS OTP.');
-    } finally {
-      setLoading(false);
     }
+
+    if (!firebaseSuccess) {
+      try {
+        const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
+        setOtpSent(true);
+        setTimer(30);
+        toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲 (OTP Code: ${data.data?.otp || '123456'})`);
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
+      }
+    }
+
+    setLoading(false);
   };
 
   // Handle Verifying Real SMS OTP
@@ -146,8 +152,10 @@ export default function Login() {
     }
 
     setLoading(true);
-    try {
-      if (isFirebaseKeyValid && confirmationResult) {
+    let firebaseSuccess = false;
+
+    if (isFirebaseKeyValid && confirmationResult) {
+      try {
         const result = await confirmationResult.confirm(fullOTP);
         const firebaseUser = result.user;
         const idToken = await firebaseUser.getIdToken();
@@ -163,18 +171,22 @@ export default function Login() {
         login(data.data.user, data.data.token);
         toast.success(`Mobile verified successfully! Welcome 🎉`);
         return navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      } catch (fbErr) {
+        console.warn('Firebase OTP verify failed, falling back to Backend:', fbErr);
       }
+    }
 
-      // Backend OTP Verification
-      const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
-      login(data.data.user, data.data.token);
-      toast.success(`Mobile verified successfully! Welcome 🎉`);
-      navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
-    } catch (err) {
-      console.error('OTP Verification Error:', err);
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please enter correct OTP.');
-    } finally {
-      setLoading(false);
+    if (!firebaseSuccess) {
+      try {
+        const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
+        login(data.data.user, data.data.token);
+        toast.success(`Mobile verified successfully! Welcome 🎉`);
+        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please enter correct OTP.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
