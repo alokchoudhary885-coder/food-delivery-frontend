@@ -1,6 +1,6 @@
 /**
  * @file src/config/firebase.js
- * @description Official Firebase Client SDK Initialization for Production Auth.
+ * @description Official Firebase Client SDK Initialization using Environment Variables.
  */
 
 import { initializeApp } from 'firebase/app';
@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyAkD9X-nF8yF6POxz8-Wd3-d4RHBi-jBuw',
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'foodrush-app-e8b58.firebaseapp.com',
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID || 'foodrush-app-e8b58',
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'foodrush-app-e8b58.firebasestorage.app',
