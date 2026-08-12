@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -24,7 +23,14 @@ export default function Login() {
 
   const { login } = useAuthStore();
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || null;
   const otpInputRefs = useRef([]);
+
+  const getTargetRoute = (userRole) => {
+    if (redirectTarget) return redirectTarget;
+    return userRole === 'owner' ? '/dashboard' : '/restaurants';
+  };
 
   const isFirebaseKeyValid =
     import.meta.env.VITE_FIREBASE_API_KEY &&
@@ -77,7 +83,7 @@ export default function Login() {
 
         login(data.data.user, data.data.token);
         toast.success(`Welcome, ${data.data.user.name || 'User'}! Signed in with Google 🎉`);
-        return navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+        return navigate(getTargetRoute(data.data.user.role));
       } catch (fbErr) {
         console.warn('Firebase Google Auth failed, falling back to Backend:', fbErr);
       }
@@ -90,7 +96,7 @@ export default function Login() {
         const { data } = await api.post('/auth/google', { email: userEmail, name: userEmail.split('@')[0] });
         login(data.data.user, data.data.token);
         toast.success(`Google Account Signed In: ${userEmail} 🌐`);
-        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+        navigate(getTargetRoute(data.data.user.role));
       } catch (err) {
         toast.error(err.response?.data?.message || 'Google Sign-In failed.');
       } finally {
@@ -170,7 +176,7 @@ export default function Login() {
 
         login(data.data.user, data.data.token);
         toast.success(`Mobile verified successfully! Welcome 🎉`);
-        return navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+        return navigate(getTargetRoute(data.data.user.role));
       } catch (fbErr) {
         console.warn('Firebase OTP verify failed, falling back to Backend:', fbErr);
       }
@@ -181,7 +187,7 @@ export default function Login() {
         const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
         login(data.data.user, data.data.token);
         toast.success(`Mobile verified successfully! Welcome 🎉`);
-        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+        navigate(getTargetRoute(data.data.user.role));
       } catch (err) {
         toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please enter correct OTP.');
       } finally {
@@ -215,7 +221,7 @@ export default function Login() {
       const { data } = await api.post('/auth/login', form);
       login(data.data.user, data.data.token);
       toast.success(`Welcome back, ${data.data.user.name}! 🎉`);
-      navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {
@@ -385,7 +391,12 @@ export default function Login() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label className="form-label" style={{ margin: 0 }}>Password</label>
+                <Link to="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600 }}>
+                  Forgot Password?
+                </Link>
+              </div>
               <input
                 id="login-password"
                 type="password"

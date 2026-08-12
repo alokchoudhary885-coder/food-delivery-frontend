@@ -1,10 +1,14 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
 // Requires login
 export function ProtectedRoute({ children }) {
   const { token } = useAuthStore();
-  if (!token) return <Navigate to="/login" replace />;
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
   return children;
 }
 

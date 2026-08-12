@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useCartStore from '../store/cartStore';
+import useAuthStore from '../store/authStore';
+import LoginRequiredModal from '../components/LoginRequiredModal';
 
 /* ─── Coupon Codes ─────────────────────────────────────── */
 const COUPONS = {
@@ -81,6 +83,7 @@ function CityInput({ value, onChange }) {
 /* ─── Main Cart Component ──────────────────────────────── */
 export default function Cart() {
   const { items, restaurantId, restaurantName, subtotal, increment, decrement, removeItem, clearCart } = useCartStore();
+  const { user, token } = useAuthStore();
   const navigate = useNavigate();
   const [address, setAddress]         = useState({ street: '', city: '', state: '', pincode: '' });
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
@@ -88,6 +91,7 @@ export default function Cart() {
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const DELIVERY_FEE = 50;
   const sub = subtotal();
@@ -129,6 +133,10 @@ export default function Cart() {
     });
 
   const handlePlaceOrder = async () => {
+    if (!token || !user) {
+      setShowLoginModal(true);
+      return;
+    }
     if (!address.street || !address.city || !address.state || !address.pincode) {
       return toast.error('Delivery address poora bharo');
     }
@@ -359,6 +367,12 @@ export default function Cart() {
           </div>
         </motion.div>
       </div>
+
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectPath="/cart"
+      />
 
       <style>{`
         .cart-layout { display: grid; grid-template-columns: 1fr 380px; gap: 2rem; padding-top: 2rem; padding-bottom: 4rem; align-items: start; }

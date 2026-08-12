@@ -15,6 +15,7 @@ import MyOrders        from './pages/MyOrders';
 import OwnerDashboard  from './pages/OwnerDashboard';
 import Profile         from './pages/Profile';
 import CreateRestaurant from './pages/CreateRestaurant';
+import ForgotPassword   from './pages/ForgotPassword';
 
 export default function App() {
   return (
@@ -36,11 +37,12 @@ export default function App() {
 
       <Routes>
         {/* Public */}
-        <Route path="/"            element={<Home />} />
-        <Route path="/login"       element={<Login />} />
-        <Route path="/register"    element={<Register />} />
-        <Route path="/restaurants" element={<Restaurants />} />
-        <Route path="/restaurants/:id" element={<RestaurantDetail />} />
+        <Route path="/"                 element={<Home />} />
+        <Route path="/login"            element={<Login />} />
+        <Route path="/register"         element={<Register />} />
+        <Route path="/forgot-password"  element={<ForgotPassword />} />
+        <Route path="/restaurants"      element={<Restaurants />} />
+        <Route path="/restaurants/:id"  element={<RestaurantDetail />} />
 
         {/* Protected — any logged-in user */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
