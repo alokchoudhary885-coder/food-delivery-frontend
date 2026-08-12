@@ -4,7 +4,15 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
-import { auth, googleProvider, signInWithPopup } from '../config/firebase';
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+} from '../config/firebase';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from 'firebase/auth';
 
 export default function Register() {
   const [form, setForm]       = useState({ name: '', email: '', password: '', role: 'customer', phone: '' });
@@ -18,14 +26,53 @@ export default function Register() {
       return toast.error('Password must be at least 6 characters');
     }
     setLoading(true);
+    let firebaseSuccess = false;
+
     try {
-      const { data } = await api.post('/auth/register', form);
+      // 1. Create User in Firebase Email Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      const firebaseUser = userCredential.user;
+
+      // 2. Send Real Email Verification Link
+      await sendEmailVerification(firebaseUser);
+      toast.success('Verification email sent! Please check your inbox 📬', { duration: 6000 });
+
+      // 3. Obtain Firebase ID Token & Sync with Backend MongoDB
+      const idToken = await firebaseUser.getIdToken(true);
+      const { data } = await api.post('/auth/firebase-login', {
+        idToken,
+        email: form.email,
+        name: form.name,
+        phone: form.phone,
+        role: form.role,
+        authProvider: 'email',
+        uid: firebaseUser.uid,
+      });
+
       login(data.data.user, data.data.token);
-      toast.success(`Welcome, ${data.data.user.name}! 🎉`);
+      firebaseSuccess = true;
       navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
-    } finally {
+    } catch (fbErr) {
+      console.warn('Firebase Email Signup Error:', fbErr);
+      if (fbErr.code === 'auth/email-already-in-use') {
+        toast.error('Email is already registered. Please login instead.');
+      } else if (fbErr.code === 'auth/invalid-email') {
+        toast.error('Please provide a valid email address.');
+      }
+    }
+
+    if (!firebaseSuccess) {
+      try {
+        const { data } = await api.post('/auth/register', form);
+        login(data.data.user, data.data.token);
+        toast.success(`Welcome, ${data.data.user.name}! 🎉`);
+        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Registration failed');
+      } finally {
+        setLoading(false);
+      }
+    } else {
       setLoading(false);
     }
   };
@@ -35,7 +82,7 @@ export default function Register() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true);
 
       const { data } = await api.post('/auth/firebase-login', {
         idToken,
