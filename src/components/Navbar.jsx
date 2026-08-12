@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import useAuthStore from '../store/authStore';
 import useCartStore from '../store/cartStore';
+import { auth, signOut as firebaseSignOut } from '../config/firebase';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -10,7 +11,10 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch {}
     logout();
     navigate('/login');
     setMobileOpen(false);
@@ -46,11 +50,16 @@ export default function Navbar() {
             {user ? (
               <div className="user-menu desktop-only">
                 <button className="user-avatar" onClick={() => setMenuOpen(!menuOpen)}>
-                  {user.name?.charAt(0).toUpperCase()}
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    user.name?.charAt(0).toUpperCase() || 'U'
+                  )}
                 </button>
                 {menuOpen && (
                   <div className="user-dropdown">
                     <div className="dropdown-name">{user.name}</div>
+                    {user.phone && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>+91 {user.phone}</div>}
                     <div className="badge badge-orange dropdown-role">{user.role}</div>
                     <div className="divider" style={{ margin: '8px 0' }} />
                     <Link to="/profile" className="dropdown-item" onClick={() => setMenuOpen(false)}>👤 Profile</Link>
