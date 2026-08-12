@@ -300,17 +300,23 @@ export default function Restaurants() {
       </div>
 
       <style>{`
-        .search-row { display: flex; gap: 10px; margin-bottom: 1rem; }
+        .search-row { display: flex; gap: 8px; margin-bottom: 1rem; align-items: center; }
         .voice-mic-btn {
-          position: absolute; right: 10px; background: none; border: none;
-          font-size: 1.2rem; cursor: pointer; padding: 6px; border-radius: 50%;
-          transition: transform 0.2s, background 0.2s;
+          position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+          background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 6px;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          transition: transform 0.2s, background 0.2s; z-index: 2;
         }
-        .voice-mic-btn:hover { transform: scale(1.15); background: rgba(255,107,53,0.15); }
+        .voice-mic-btn:hover { transform: translateY(-50%) scale(1.15); background: rgba(255,107,53,0.15); }
         .voice-mic-btn.listening { animation: pulseMic 1s infinite alternate; }
         @keyframes pulseMic {
-          0% { transform: scale(1); filter: drop-shadow(0 0 4px #FF6B35); }
-          100% { transform: scale(1.3); filter: drop-shadow(0 0 12px #FF6B35); }
+          0% { transform: translateY(-50%) scale(1); filter: drop-shadow(0 0 4px #FF6B35); }
+          100% { transform: translateY(-50%) scale(1.3); filter: drop-shadow(0 0 12px #FF6B35); }
+        }
+        @media (max-width: 600px) {
+          .search-row { flex-wrap: wrap; }
+          .search-row > div { width: 100%; flex: 1 1 100% !important; }
+          .search-row button[type="submit"], .search-row #filter-toggle-btn { flex: 1; }
         }
         .filter-dot {
           display: inline-block; width: 6px; height: 6px;
