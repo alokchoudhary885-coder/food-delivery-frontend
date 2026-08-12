@@ -44,17 +44,27 @@ export default function Login() {
 
   // Setup Firebase Invisible Recaptcha Verifier
   const getRecaptchaVerifier = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        'recaptcha-container',
-        {
-          size: 'invisible',
-          callback: () => {},
-          'expired-callback': () => {},
-        }
-      );
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch (e) {
+        console.warn('Clearing old recaptcha:', e);
+      }
+      window.recaptchaVerifier = null;
     }
+
+    const container = document.getElementById('recaptcha-container');
+    if (container) container.innerHTML = '';
+
+    window.recaptchaVerifier = new RecaptchaVerifier(
+      auth,
+      'recaptcha-container',
+      {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {},
+      }
+    );
     return window.recaptchaVerifier;
   };
 
