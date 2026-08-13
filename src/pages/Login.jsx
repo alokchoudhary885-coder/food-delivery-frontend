@@ -113,39 +113,40 @@ export default function Login() {
     }
 
     setLoading(true);
+    let firebaseSuccess = false;
+
+    // 1. Try Firebase Phone Auth
     try {
       const verifier = getRecaptchaVerifier();
       const formattedPhone = `+91${cleanPhone}`;
-
-      // Call Real Firebase Phone Auth
       const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
-
-      // ONLY set OTP sent AFTER Firebase successfully returns confirmation result
       setConfirmationResult(confirmation);
       setOtpSent(true);
       setTimer(30);
       toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-    } catch (err) {
-      console.error('SMS OTP Error:', err);
+      firebaseSuccess = true;
+    } catch (fbErr) {
+      console.warn('Firebase Phone Auth failed, using FoodRush SMS engine:', fbErr);
       if (window.recaptchaVerifier) {
         try { window.recaptchaVerifier.clear(); } catch {}
         window.recaptchaVerifier = null;
       }
-
-      if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
-        toast.error('Firebase API Key not configured on Vercel. Add VITE_FIREBASE_API_KEY in Vercel settings.');
-      } else if (err.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid mobile phone number format.');
-      } else if (err.code === 'auth/quota-exceeded') {
-        toast.error('SMS quota exceeded for today. Try again later.');
-      } else if (err.code === 'auth/too-many-requests') {
-        toast.error('Too many OTP attempts. Please wait a few minutes.');
-      } else {
-        toast.error(err.message || 'Failed to send SMS OTP.');
-      }
-    } finally {
-      setLoading(false);
     }
+
+    // 2. Fail-safe Fallback to Backend SMS Engine
+    if (!firebaseSuccess) {
+      try {
+        const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
+        setConfirmationResult(null);
+        setOtpSent(true);
+        setTimer(30);
+        toast.success(`SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
+      }
+    }
+
+    setLoading(false);
   };
 
   // Handle Verifying Real SMS OTP
@@ -156,36 +157,39 @@ export default function Login() {
       return toast.error('Please enter complete 6-digit OTP');
     }
 
-    if (!confirmationResult) {
-      return toast.error('No OTP request found. Please request a new OTP.');
+    setLoading(true);
+
+    // 1. If Firebase confirmationResult exists, verify via Firebase
+    if (confirmationResult) {
+      try {
+        const result = await confirmationResult.confirm(fullOTP);
+        const firebaseUser = result.user;
+        const idToken = await firebaseUser.getIdToken(true);
+
+        const { data } = await api.post('/auth/firebase-login', {
+          idToken,
+          phone: firebaseUser?.phoneNumber || `+91${phone}`,
+          name: `Customer_${phone.slice(-4)}`,
+          authProvider: 'phone',
+          uid: firebaseUser?.uid,
+        });
+
+        login(data.data.user, data.data.token);
+        toast.success(`Mobile verified successfully! Welcome 🎉`);
+        return navigate(getTargetRoute(data.data.user.role));
+      } catch (fbErr) {
+        console.warn('Firebase OTP verify failed, trying Backend verify:', fbErr);
+      }
     }
 
-    setLoading(true);
+    // 2. Verify via Backend API
     try {
-      const result = await confirmationResult.confirm(fullOTP);
-      const firebaseUser = result.user;
-      const idToken = await firebaseUser.getIdToken(true);
-
-      const { data } = await api.post('/auth/firebase-login', {
-        idToken,
-        phone: firebaseUser?.phoneNumber || `+91${phone}`,
-        name: `Customer_${phone.slice(-4)}`,
-        authProvider: 'phone',
-        uid: firebaseUser?.uid,
-      });
-
+      const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
       login(data.data.user, data.data.token);
       toast.success(`Mobile verified successfully! Welcome 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      console.error('OTP Verification Error:', err);
-      if (err.code === 'auth/invalid-verification-code') {
-        toast.error('Incorrect OTP. Please enter the correct 6-digit code received via SMS.');
-      } else if (err.code === 'auth/code-expired') {
-        toast.error('OTP has expired. Click Resend OTP to get a new code.');
-      } else {
-        toast.error(err.response?.data?.message || err.message || 'OTP verification failed.');
-      }
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please enter correct OTP.');
     } finally {
       setLoading(false);
     }
