@@ -18,7 +18,6 @@ export default function Login() {
   const [phone, setPhone]             = useState('');
   const [otpDigits, setOtpDigits]     = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent]         = useState(false);
-  const [activeOTPCode, setActiveOTPCode] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [timer, setTimer]             = useState(0);
   const [loading, setLoading]         = useState(false);
@@ -137,13 +136,11 @@ export default function Login() {
     // 2. Fail-safe Fallback to Backend SMS Engine
     if (!firebaseSuccess) {
       try {
-        const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
-        const generatedCode = data.data?.otp || '';
-        setActiveOTPCode(generatedCode);
+        await api.post('/auth/send-otp', { phone: cleanPhone });
         setConfirmationResult(null);
         setOtpSent(true);
         setTimer(30);
-        toast.success(`OTP Sent! Code: ${generatedCode || '123456'} 📲`, { duration: 10000 });
+        toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲 Check your SMS messages`);
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
       }
@@ -324,11 +321,6 @@ export default function Login() {
                 <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
                   OTP sent to <span style={{ color: '#fff', fontWeight: 700 }}>+91 ******{phone.slice(-4)}</span>
                 </p>
-                {activeOTPCode && (
-                  <div style={{ background: 'rgba(255,107,53,0.15)', border: '1px solid var(--color-orange)', padding: '8px 14px', borderRadius: '10px', fontSize: '0.85rem', marginTop: 10, color: 'var(--color-orange)' }}>
-                    📲 Verification OTP Code: <strong style={{ fontSize: '1.1rem', letterSpacing: 2, color: '#fff' }}>{activeOTPCode}</strong>
-                  </div>
-                )}
               </div>
 
               {/* Clean 6-Digit OTP Box Grid */}
