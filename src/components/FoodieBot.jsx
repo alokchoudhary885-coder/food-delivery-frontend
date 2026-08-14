@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useCartStore from '../store/cartStore';
 
-const QUICK_PROMPTS = [
+const INITIAL_PROMPTS = [
   '🌶️ 2 logon ke liye under ₹500 spicy dinner',
   '🥗 High protein healthy dinner',
   '🍰 Late night sweet desserts',
@@ -22,12 +22,12 @@ export default function FoodieBot() {
     {
       id: 'welcome',
       sender: 'bot',
-      text: 'Namaste! 👋 Main hoon FoodieBot, aapka FoodRush AI Assistant. Mujhe batayein aapka mood, budget ya kya khane ka man hai!',
+      text: 'Namaste! 👋 Main hoon FoodieBot, aapka AI Ordering Assistant.\n\nKuch bhi natural bolo:\n• "2 logon ke liye under ₹500 spicy dinner"\n• "2 paneer roll cart mein add karo"\n• "Second wala add karo ya checkout karwa do!"',
       recommendations: [],
     },
   ]);
 
-  const { addItem, replaceCart } = useCartStore();
+  const { items: cartItems, addItem, replaceCart, totalItems, subtotal } = useCartStore();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
 
@@ -36,9 +36,9 @@ export default function FoodieBot() {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, loading]);
 
-  // Handle Send AI Query
+  // Handle Send AI Query with multi-turn conversation memory
   const handleSend = async (queryText) => {
     const textToSend = (queryText || input).trim();
     if (!textToSend || loading) return;
@@ -54,8 +54,39 @@ export default function FoodieBot() {
     setLoading(true);
 
     try {
-      const { data } = await api.post('/ai/recommend', { query: textToSend });
+      // Send message history for multi-turn conversational context
+      const historyPayload = messages.map((m) => ({
+        sender: m.sender,
+        text: m.text,
+        recommendations: m.recommendations || [],
+      }));
+
+      const { data } = await api.post('/ai/recommend', {
+        query: textToSend,
+        history: historyPayload,
+      });
       const botResponse = data.data;
+
+      // Execute Autonomous Actions from AI
+      if (botResponse.action) {
+        if (botResponse.action.type === 'ADD_ITEMS' && botResponse.action.items?.length > 0) {
+          botResponse.action.items.forEach((item, idx) => {
+            const restId = item.restaurant?._id || 'ai_restaurant';
+            const restName = item.restaurant?.name || 'FoodRush Kitchen';
+            if (idx === 0 && cartItems.length === 0) {
+              replaceCart(item, restId, restName);
+            } else {
+              addItem(item, restId, restName);
+            }
+          });
+          toast.success(`🛒 Cart Updated: ${botResponse.action.items.map((i) => i.name).join(', ')}!`, { duration: 4000 });
+        } else if (botResponse.action.type === 'NAVIGATE_CHECKOUT') {
+          setTimeout(() => {
+            setIsOpen(false);
+            navigate('/cart');
+          }, 800);
+        }
+      }
 
       const botMsg = {
         id: (Date.now() + 1).toString(),
@@ -63,6 +94,7 @@ export default function FoodieBot() {
         text: botResponse.reply || 'Maine aapke liye ye dishes select ki hain! 🍕✨',
         totalPrice: botResponse.totalEstimatedPrice,
         recommendations: botResponse.recommendations || [],
+        actionType: botResponse.action?.type || null,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -73,7 +105,7 @@ export default function FoodieBot() {
         {
           id: (Date.now() + 1).toString(),
           sender: 'bot',
-          text: 'Oops! Abhi AI recommendations fetch karne mein dikkat aayi. Kripya thodi der baad dubara try karein.',
+          text: 'Oops! AI assistant connect karne mein problem aayi. Please dobara try karein.',
           recommendations: [],
         },
       ]);
@@ -90,7 +122,7 @@ export default function FoodieBot() {
 
     if (result?.conflict) {
       replaceCart(item, restId, restName);
-      toast.success(`Cart updated with ${item.name}! 🛒`);
+      toast.success(`Cart replaced & added ${item.name}! 🛒`);
     } else {
       toast.success(`${item.name} added to cart! 🛒`);
     }
@@ -105,7 +137,7 @@ export default function FoodieBot() {
       const restId = item.restaurant?._id || 'ai_restaurant';
       const restName = item.restaurant?.name || 'Top Restaurant';
 
-      if (index === 0) {
+      if (index === 0 && cartItems.length === 0) {
         replaceCart(item, restId, restName);
       } else {
         addItem(item, restId, restName);
@@ -152,6 +184,8 @@ export default function FoodieBot() {
     }
   };
 
+  const hasRecentRecommendations = messages.some((m) => m.sender === 'bot' && m.recommendations?.length > 0);
+
   return (
     <>
       {/* ── Floating AI Trigger Button ── */}
@@ -166,6 +200,7 @@ export default function FoodieBot() {
         >
           <span className="bot-emoji-icon">🤖</span>
           <span className="bot-btn-text">FoodieBot AI</span>
+          {totalItems() > 0 && <span className="bot-cart-badge">{totalItems()}</span>}
           <span className="bot-live-pulse" />
         </motion.button>
       </div>
@@ -185,16 +220,29 @@ export default function FoodieBot() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="bot-avatar-badge">🤖</div>
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    FoodieBot AI <span className="badge-ai-model">Smart Assistant</span>
+                  <h3 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    FoodieBot AI <span className="badge-ai-model">Autonomous</span>
                   </h3>
                   <p style={{ fontSize: '0.72rem', color: '#22C55E', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span className="green-dot" /> Live MongoDB Connected
+                    <span className="green-dot" /> Multi-Turn Memory Active
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {totalItems() > 0 && (
+                  <button
+                    type="button"
+                    className="bot-cart-pill"
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate('/cart');
+                    }}
+                    title="View Cart"
+                  >
+                    🛒 ₹{subtotal()}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="bot-header-btn"
@@ -206,19 +254,56 @@ export default function FoodieBot() {
               </div>
             </div>
 
-            {/* Quick Prompts Chips */}
+            {/* Quick Prompts Chips / Dynamic Follow-ups */}
             <div className="quick-prompts-scroller">
-              {QUICK_PROMPTS.map((prompt, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className="quick-chip"
-                  onClick={() => handleSend(prompt)}
-                  disabled={loading}
-                >
-                  {prompt}
-                </button>
-              ))}
+              {hasRecentRecommendations ? (
+                <>
+                  <button
+                    type="button"
+                    className="quick-chip active-action"
+                    onClick={() => handleSend('Sab recommendations cart mein daal do')}
+                    disabled={loading}
+                  >
+                    🛒 Sab cart mein daalo
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip"
+                    onClick={() => handleSend('Isse sasta option dikhao')}
+                    disabled={loading}
+                  >
+                    💰 Isse sasta option?
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip"
+                    onClick={() => handleSend('Sirf veg items dikhao')}
+                    disabled={loading}
+                  >
+                    🥗 Sirf Veg
+                  </button>
+                  <button
+                    type="button"
+                    className="quick-chip checkout-chip"
+                    onClick={() => handleSend('Order checkout karwa do')}
+                    disabled={loading}
+                  >
+                    🚀 Checkout karo
+                  </button>
+                </>
+              ) : (
+                INITIAL_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="quick-chip"
+                    onClick={() => handleSend(prompt)}
+                    disabled={loading}
+                  >
+                    {prompt}
+                  </button>
+                ))
+              )}
             </div>
 
             {/* Chat Messages */}
@@ -228,13 +313,13 @@ export default function FoodieBot() {
                   {msg.sender === 'bot' && <div className="msg-bot-avatar">🤖</div>}
 
                   <div className={`message-bubble ${msg.sender}`}>
-                    <p style={{ margin: 0, lineHeight: 1.45 }}>{msg.text}</p>
+                    <p style={{ margin: 0, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{msg.text}</p>
 
                     {/* Dish Recommendation Cards */}
                     {msg.recommendations && msg.recommendations.length > 0 && (
                       <div className="ai-dish-recommendations">
-                        {msg.recommendations.map((item) => (
-                          <div key={item._id} className="ai-dish-card">
+                        {msg.recommendations.map((item, idx) => (
+                          <div key={item._id || idx} className="ai-dish-card">
                             <img
                               src={item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'}
                               alt={item.name}
@@ -245,6 +330,7 @@ export default function FoodieBot() {
                             />
                             <div className="ai-dish-info">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span className="item-number-badge">#{idx + 1}</span>
                                 <span className={item.isVeg ? 'veg-badge' : 'non-veg-badge'}>
                                   {item.isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
                                 </span>
@@ -252,7 +338,7 @@ export default function FoodieBot() {
                               </div>
                               <h4 className="ai-dish-title">{item.name}</h4>
                               <p className="ai-dish-rest">
-                                🏪 {item.restaurant?.name} • ⭐ {item.restaurant?.rating}
+                                🏪 {item.restaurant?.name || 'Top Kitchen'} • ⭐ {item.restaurant?.rating || 4.5}
                               </p>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                                 <span className="ai-dish-price">₹{item.price}</span>
@@ -261,7 +347,7 @@ export default function FoodieBot() {
                                   className="ai-add-btn"
                                   onClick={() => handleAddToCart(item)}
                                 >
-                                  + Add
+                                  + Add to Cart
                                 </button>
                               </div>
                             </div>
@@ -271,16 +357,18 @@ export default function FoodieBot() {
                         {/* Add All Button Bar */}
                         <div className="ai-cart-summary-bar">
                           <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                            Total: ₹{msg.totalPrice || msg.recommendations.reduce((s, i) => s + i.price, 0)}
+                            Total: ₹{msg.totalPrice || msg.recommendations.reduce((s, i) => s + (i.price || 0), 0)}
                           </span>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleAddAllToCart(msg.recommendations)}
-                            style={{ borderRadius: 8 }}
-                          >
-                            🛒 Add All to Cart
-                          </button>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleAddAllToCart(msg.recommendations)}
+                              style={{ borderRadius: 8 }}
+                            >
+                              🛒 Add All to Cart
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -312,7 +400,7 @@ export default function FoodieBot() {
               <input
                 type="text"
                 className="bot-text-input"
-                placeholder="Ask e.g. 2 logon ke liye spicy dinner..."
+                placeholder="Type or speak e.g. 'Second wala add karo'..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={loading}
@@ -363,6 +451,10 @@ export default function FoodieBot() {
           box-shadow: 0 12px 40px rgba(255, 107, 53, 0.65);
         }
         .bot-emoji-icon { font-size: 1.25rem; }
+        .bot-cart-badge {
+          background: #111; color: #FF6B35; font-size: 0.75rem; font-weight: 800;
+          padding: 2px 7px; border-radius: 999px; border: 1px solid #FF6B35;
+        }
         .bot-live-pulse {
           width: 8px; height: 8px; border-radius: 50%;
           background: #22C55E;
@@ -379,11 +471,11 @@ export default function FoodieBot() {
           position: fixed;
           bottom: 84px;
           right: 24px;
-          width: 400px;
+          width: 410px;
           max-width: calc(100vw - 32px);
-          height: 580px;
-          max-height: calc(100vh - 120px);
-          background: rgba(22, 21, 42, 0.96);
+          height: 600px;
+          max-height: calc(100vh - 110px);
+          background: rgba(22, 21, 42, 0.97);
           border: 1px solid rgba(255, 107, 53, 0.35);
           border-radius: 20px;
           box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(255,107,53,0.15);
@@ -415,6 +507,11 @@ export default function FoodieBot() {
         .green-dot {
           width: 6px; height: 6px; border-radius: 50%; background: #22C55E; display: inline-block;
         }
+        .bot-cart-pill {
+          background: rgba(255, 107, 53, 0.15); border: 1px solid var(--color-orange);
+          color: var(--color-orange); font-size: 0.78rem; font-weight: 700;
+          padding: 4px 10px; border-radius: 999px; cursor: pointer;
+        }
         .bot-header-btn {
           background: rgba(255, 255, 255, 0.08); border: none; color: var(--color-text-muted);
           width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
@@ -438,6 +535,12 @@ export default function FoodieBot() {
         .quick-chip:hover {
           background: rgba(255, 107, 53, 0.2); border-color: var(--color-orange); color: var(--color-orange);
         }
+        .quick-chip.active-action {
+          background: rgba(255, 107, 53, 0.25); border-color: var(--color-orange); color: #fff;
+        }
+        .quick-chip.checkout-chip {
+          background: rgba(34, 197, 94, 0.2); border-color: #22C55E; color: #22C55E;
+        }
 
         .foodiebot-messages {
           flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px;
@@ -451,7 +554,7 @@ export default function FoodieBot() {
           flex-shrink: 0;
         }
         .message-bubble {
-          max-width: 82%; padding: 10px 14px; border-radius: 14px; font-size: 0.88rem;
+          max-width: 84%; padding: 10px 14px; border-radius: 14px; font-size: 0.88rem;
         }
         .message-bubble.user {
           background: linear-gradient(135deg, #FF6B35, #FF8C42);
@@ -488,6 +591,10 @@ export default function FoodieBot() {
           width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
         }
         .ai-dish-info { flex: 1; min-width: 0; }
+        .item-number-badge {
+          font-size: 0.65rem; font-weight: 800; background: rgba(255, 255, 255, 0.12);
+          color: #fff; padding: 1px 5px; border-radius: 4px;
+        }
         .ai-dish-title {
           font-size: 0.85rem; font-weight: 700; margin: 2px 0;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
