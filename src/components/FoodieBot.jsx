@@ -6,11 +6,11 @@ import api from '../api/axios';
 import useCartStore from '../store/cartStore';
 
 const INITIAL_PROMPTS = [
-  '🌶️ 2 logon ke liye under ₹500 spicy dinner',
+  '📍 Mere paas best pizza kahan milega?',
+  '🌶️ 5 km ke andar spicy dinner under ₹500',
+  '🏪 Mere nearby best rated restaurant?',
   '🥗 High protein healthy dinner',
   '🍰 Late night sweet desserts',
-  '🍕 Best pizza & burger combo',
-  '🍲 Authentic Biryani & Rolls',
 ];
 
 export default function FoodieBot() {
@@ -18,11 +18,12 @@ export default function FoodieBot() {
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(false);
   const [listening, setListening]   = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
   const [messages, setMessages]     = useState([
     {
       id: 'welcome',
       sender: 'bot',
-      text: 'Namaste! 👋 Main hoon FoodieBot, aapka AI Ordering Assistant.\n\nKuch bhi natural bolo:\n• "2 logon ke liye under ₹500 spicy dinner"\n• "2 paneer roll cart mein add karo"\n• "Second wala add karo ya checkout karwa do!"',
+      text: 'Namaste! 👋 Main hoon FoodieBot, aapka Location-Aware AI Ordering Assistant.\n\nKuch bhi natural bolo:\n• "Mere paas best pizza kahan milega?"\n• "5 km ke andar ₹500 mein spicy dinner"\n• "2 paneer roll cart mein add karo ya checkout karwa do!"',
       recommendations: [],
     },
   ]);
@@ -38,7 +39,25 @@ export default function FoodieBot() {
     }
   }, [messages, isOpen, loading]);
 
-  // Handle Send AI Query with multi-turn conversation memory
+  // Request location on first open if available
+  const handleDetectUserLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {},
+      { timeout: 8000 }
+    );
+  };
+
+  useEffect(() => {
+    if (isOpen && !userLocation) {
+      handleDetectUserLocation();
+    }
+  }, [isOpen]);
+
+  // Handle Send AI Query with multi-turn conversation memory & location context
   const handleSend = async (queryText) => {
     const textToSend = (queryText || input).trim();
     if (!textToSend || loading) return;
@@ -64,6 +83,7 @@ export default function FoodieBot() {
       const { data } = await api.post('/ai/recommend', {
         query: textToSend,
         history: historyPayload,
+        location: userLocation,
       });
       const botResponse = data.data;
 
@@ -160,7 +180,7 @@ export default function FoodieBot() {
 
     recognition.onstart = () => {
       setListening(true);
-      toast.loading('🎙️ Sun raha hoon... Bolye! (e.g. 2 logon ke liye spicy pizza under 500)', { id: 'bot-voice' });
+      toast.loading('🎙️ Sun raha hoon... Bolye! (e.g. 5 km ke andar best spicy pizza under 500)', { id: 'bot-voice' });
     };
 
     recognition.onresult = (e) => {
@@ -221,10 +241,10 @@ export default function FoodieBot() {
                 <div className="bot-avatar-badge">🤖</div>
                 <div>
                   <h3 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    FoodieBot AI <span className="badge-ai-model">Autonomous</span>
+                    FoodieBot AI <span className="badge-ai-model">Location Aware</span>
                   </h3>
                   <p style={{ fontSize: '0.72rem', color: '#22C55E', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span className="green-dot" /> Multi-Turn Memory Active
+                    <span className="green-dot" /> {userLocation ? '📍 GPS Active (Nearby Menus)' : 'Live MongoDB Connected'}
                   </p>
                 </div>
               </div>
@@ -335,6 +355,9 @@ export default function FoodieBot() {
                                   {item.isVeg ? '🟢 Veg' : '🔴 Non-Veg'}
                                 </span>
                                 {item.spiceLevel === 'hot' && <span className="spice-tag">🌶️ Spicy</span>}
+                                {item.formattedDistance && (
+                                  <span className="dist-tag">📍 {item.formattedDistance}</span>
+                                )}
                               </div>
                               <h4 className="ai-dish-title">{item.name}</h4>
                               <p className="ai-dish-rest">
@@ -400,7 +423,7 @@ export default function FoodieBot() {
               <input
                 type="text"
                 className="bot-text-input"
-                placeholder="Type or speak e.g. 'Second wala add karo'..."
+                placeholder="Ask e.g. 'Mere paas best pizza kahan milega?'..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={loading}
@@ -611,6 +634,7 @@ export default function FoodieBot() {
         .veg-badge { font-size: 0.65rem; color: #22C55E; font-weight: 700; }
         .non-veg-badge { font-size: 0.65rem; color: #EF4444; font-weight: 700; }
         .spice-tag { font-size: 0.65rem; color: #FF8C42; font-weight: 700; margin-left: 4px; }
+        .dist-tag { font-size: 0.65rem; color: var(--color-orange); font-weight: 700; margin-left: 4px; }
 
         .ai-cart-summary-bar {
           display: flex; justify-content: space-between; align-items: center;

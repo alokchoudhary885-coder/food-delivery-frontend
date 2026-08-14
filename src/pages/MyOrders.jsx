@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 
-const STATUS_STEPS  = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
-const STATUS_ICONS  = { pending: '⏳', confirmed: '✅', preparing: '👨‍🍳', out_for_delivery: '🛵', delivered: '🎉' };
-const STATUS_LABELS = { pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing', out_for_delivery: 'On the Way', delivered: 'Delivered' };
+const STATUS_STEPS  = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+const STATUS_ICONS  = { pending: '⏳', confirmed: '✅', preparing: '👨‍🍳', ready: '🔔', out_for_delivery: '🛵', delivered: '🎉' };
+const STATUS_LABELS = { pending: 'Order Placed', confirmed: 'Accepted', preparing: 'Preparing', ready: 'Food Ready', out_for_delivery: 'On the Way', delivered: 'Delivered' };
 
 /* ─── Review Modal ─────────────────────────────────────── */
 function ReviewModal({ order, onClose, onSuccess }) {
@@ -291,6 +291,15 @@ export default function MyOrders() {
 
   useEffect(() => {
     fetchOrders();
+    // Live tracking auto-poll every 8 seconds for active status changes
+    const interval = setInterval(() => {
+      api.get('/orders/my-orders', { params: { page, limit: 5 } })
+        .then(({ data }) => {
+          setOrders(data.data?.orders || []);
+        })
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(interval);
   }, [page]);
 
   return (

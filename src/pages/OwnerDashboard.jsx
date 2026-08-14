@@ -6,7 +6,7 @@ import api from '../api/axios';
 import useAuthStore from '../store/authStore';
 import ImageUpload from '../components/ImageUpload';
 
-const STATUS_OPTIONS = ['confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
+const STATUS_OPTIONS = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled', 'rejected'];
 
 export default function OwnerDashboard() {
   const { user } = useAuthStore();
@@ -47,9 +47,9 @@ export default function OwnerDashboard() {
     try {
       await api.patch(`/orders/${orderId}/status`, { status });
       setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, status } : o));
-      toast.success(`Status updated: ${status}`);
+      toast.success(`Order status: ${status.replace('_', ' ').toUpperCase()}! ✅`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
+      toast.error(err.response?.data?.message || 'Status update failed');
     }
   };
 
@@ -98,24 +98,19 @@ export default function OwnerDashboard() {
         {/* Restaurant Selector */}
         {restaurants.length > 1 && (
           <div style={{ marginBottom: '1.5rem' }}>
-            <select
-              className="form-select" style={{ maxWidth: 320 }}
-              value={selectedRestaurant?._id}
-              onChange={(e) => setSelectedRestaurant(restaurants.find((r) => r._id === e.target.value))}
-            >
-              {restaurants.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
-            </select>
-          </div>
-        )}
-
-        {restaurants.length === 0 && !loading && (
-          <div className="empty-state">
-            <div className="icon">🏪</div>
-            <h3>Koi restaurant nahi hai</h3>
-            <p>Pehle ek restaurant create karo</p>
-            <Link to="/create-restaurant" className="btn btn-primary" style={{ marginTop: '1rem' }}>
-              + Create Restaurant
-            </Link>
+            <label className="form-label">Select Restaurant:</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {restaurants.map((r) => (
+                <button
+                  key={r._id}
+                  type="button"
+                  className={`btn btn-sm ${selectedRestaurant?._id === r._id ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setSelectedRestaurant(r)}
+                >
+                  🏪 {r.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -125,10 +120,12 @@ export default function OwnerDashboard() {
             <div className="glass" style={{ padding: '1.25rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h2 style={{ fontWeight: 700, fontSize: '1.1rem' }}>{selectedRestaurant.name}</h2>
-                <p className="text-muted" style={{ fontSize: '0.85rem' }}>{selectedRestaurant.address?.city} • ₹{selectedRestaurant.deliveryFee} delivery</p>
+                <p className="text-muted" style={{ fontSize: '0.85rem' }}>
+                  {selectedRestaurant.address?.city} • 🛵 ₹{selectedRestaurant.deliveryFee} delivery • ⭐ {selectedRestaurant.rating || 4.5}
+                </p>
               </div>
               <span className={`badge ${selectedRestaurant.isActive ? 'badge-green' : 'badge-red'}`}>
-                {selectedRestaurant.isActive ? '🟢 Active' : '🔴 Inactive'}
+                {selectedRestaurant.isActive ? '🟢 Open for Orders' : '🔴 Closed'}
               </span>
             </div>
 
@@ -136,39 +133,133 @@ export default function OwnerDashboard() {
             <div className="dash-tabs">
               {['orders', 'menu'].map((t) => (
                 <button key={t} className={`dash-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-                  {t === 'orders' ? `📦 Orders (${orders.length})` : `🍽️ Menu (${menuItems.length})`}
+                  {t === 'orders' ? `📦 Incoming Orders (${orders.length})` : `🍽️ Menu (${menuItems.length})`}
                 </button>
               ))}
             </div>
 
             {loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
-                {[1,2,3].map((i) => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12 }} />)}
+                {[1,2,3].map((i) => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 12 }} />)}
               </div>
             ) : tab === 'orders' ? (
-              <div style={{ marginTop: '1.5rem' }}>
+              <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {orders.length === 0 ? (
                   <div className="empty-state"><div className="icon">📦</div><h3>Koi order nahi aaya abhi</h3></div>
                 ) : orders.map((order) => (
-                  <div key={order._id} className="order-row glass">
-                    <div className="order-row-info">
-                      <div className="order-row-id">#{order._id.slice(-8).toUpperCase()}</div>
-                      <div className="order-row-items text-muted">
-                        {order.items?.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                  <div key={order._id} className="order-row glass" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <span className="order-row-id" style={{ fontSize: '0.95rem', fontWeight: 800 }}>
+                          #{order._id.slice(-8).toUpperCase()}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginLeft: 8 }}>
+                          {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
-                      <div style={{ fontWeight: 700, color: 'var(--color-orange)' }}>₹{order.grandTotal}</div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span className={`badge status-${order.status}`}>
+                          {order.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <span className={`badge ${order.paymentStatus === 'paid' ? 'badge-green' : 'badge-orange'}`}>
+                          {order.paymentStatus === 'paid' ? 'PAID ✅' : 'COD 💵'}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span className={`badge status-${order.status}`}>{order.status.replace('_', ' ')}</span>
-                      <select
-                        className="form-select"
-                        style={{ width: 'auto', fontSize: '0.8rem', padding: '6px 10px' }}
-                        value={order.status}
-                        onChange={(e) => updateStatus(order._id, e.target.value)}
-                        disabled={order.status === 'delivered' || order.status === 'cancelled'}
-                      >
-                        {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                      </select>
+
+                    <div style={{ fontSize: '0.88rem' }}>
+                      <p style={{ margin: '2px 0', fontWeight: 600 }}>
+                        👤 Customer: {order.customer?.name || 'Customer'}
+                      </p>
+                      <p className="text-muted" style={{ margin: '2px 0', fontSize: '0.82rem' }}>
+                        📍 {order.deliveryAddress?.street}, {order.deliveryAddress?.city} ({order.deliveryAddress?.pincode})
+                      </p>
+                      <div style={{ margin: '6px 0', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                        {order.items?.map((i, idx) => (
+                          <span key={idx} style={{ marginRight: 12, fontWeight: 500 }}>
+                            🍕 {i.name} × <strong>{i.quantity}</strong>
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ fontWeight: 800, color: 'var(--color-orange)', fontSize: '1rem', marginTop: 4 }}>
+                        Total: ₹{order.grandTotal || order.totalAmount}
+                      </div>
+                    </div>
+
+                    {/* Step-by-Step Action Controls */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
+                      {order.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => updateStatus(order._id, 'confirmed')}
+                          >
+                            ✅ Accept Order
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: '#EF4444' }}
+                            onClick={() => updateStatus(order._id, 'cancelled')}
+                          >
+                            ❌ Reject
+                          </button>
+                        </>
+                      )}
+
+                      {(order.status === 'confirmed' || order.status === 'accepted') && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => updateStatus(order._id, 'preparing')}
+                        >
+                          🍳 Start Preparing
+                        </button>
+                      )}
+
+                      {order.status === 'preparing' && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => updateStatus(order._id, 'ready')}
+                        >
+                          🔔 Mark Ready
+                        </button>
+                      )}
+
+                      {order.status === 'ready' && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => updateStatus(order._id, 'out_for_delivery')}
+                        >
+                          🛵 Out for Delivery
+                        </button>
+                      )}
+
+                      {order.status === 'out_for_delivery' && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ background: '#22C55E', borderColor: '#22C55E' }}
+                          onClick={() => updateStatus(order._id, 'delivered')}
+                        >
+                          🎉 Mark Delivered
+                        </button>
+                      )}
+
+                      {order.status === 'delivered' && (
+                        <span style={{ color: '#22C55E', fontSize: '0.85rem', fontWeight: 700 }}>
+                          ✓ Order Delivered Successfully
+                        </span>
+                      )}
+
+                      {order.status === 'cancelled' && (
+                        <span style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: 600 }}>
+                          ✕ Order Cancelled / Rejected
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -218,11 +309,14 @@ export default function OwnerDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {item.image && <img src={item.image} alt={item.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover' }} />}
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.name}</div>
-                        <div className="text-orange" style={{ fontWeight: 700 }}>₹{item.price}</div>
+                        <h4 style={{ fontWeight: 700, margin: '0 0 4px' }}>{item.name}</h4>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--color-orange)', fontWeight: 700 }}>₹{item.price}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginLeft: 8 }}>{item.category}</span>
                       </div>
                     </div>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteMenuItem(item._id)}>🗑️</button>
+                    <button className="btn btn-ghost btn-sm" style={{ color: '#EF4444' }} onClick={() => deleteMenuItem(item._id)}>
+                      🗑️
+                    </button>
                   </div>
                 ))}
               </div>
@@ -232,12 +326,17 @@ export default function OwnerDashboard() {
       </div>
 
       <style>{`
-        .dash-tabs { display: flex; gap: 8px; }
-        .dash-tab { padding: 10px 20px; border-radius: 10px; font-size: 0.875rem; font-weight: 600; background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-muted); transition: all 0.2s; cursor: pointer; }
-        .dash-tab.active { background: rgba(255,107,53,0.15); border-color: var(--color-orange); color: var(--color-orange); }
-        .order-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
-        .order-row-id { font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; }
-        .order-row-items { font-size: 0.78rem; margin-bottom: 4px; }
+        .dash-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; }
+        .dash-tab { background: transparent; border: none; font-size: 0.95rem; font-weight: 600; color: var(--color-text-muted); padding: 8px 16px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; }
+        .dash-tab.active { background: rgba(255,107,53,0.15); color: var(--color-orange); }
+        .order-row { padding: 1.25rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .status-pending { background: rgba(234,179,8,0.15); color: #EAB308; }
+        .status-confirmed, .status-accepted { background: rgba(59,130,246,0.15); color: #3B82F6; }
+        .status-preparing { background: rgba(255,107,53,0.15); color: #FF6B35; }
+        .status-ready { background: rgba(168,85,247,0.15); color: #A855F7; }
+        .status-out_for_delivery { background: rgba(14,165,233,0.15); color: #0EA5E9; }
+        .status-delivered { background: rgba(34,197,94,0.15); color: #22C55E; }
+        .status-cancelled, .status-rejected { background: rgba(239,68,68,0.15); color: #EF4444; }
       `}</style>
     </div>
   );

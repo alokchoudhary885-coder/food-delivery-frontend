@@ -284,7 +284,33 @@ export default function Cart() {
         <motion.div className="cart-checkout-col" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
           {/* Address */}
           <div className="checkout-section glass">
-            <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem', fontWeight: 700 }}>📍 Delivery Address</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>📍 Delivery Address</h3>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                onClick={() => {
+                  if (!navigator.geolocation) return toast.error('Geolocation not supported');
+                  toast.loading('Detecting delivery location...', { id: 'addr-geo' });
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setAddress((prev) => ({
+                        ...prev,
+                        street: prev.street || 'Current Pinned Location',
+                        city: prev.city || 'Jaipur',
+                        state: prev.state || 'Rajasthan',
+                        pincode: prev.pincode || '302001',
+                      }));
+                      toast.success('📍 Delivery location filled!', { id: 'addr-geo' });
+                    },
+                    () => toast.error('Location permission denied', { id: 'addr-geo' })
+                  );
+                }}
+              >
+                📍 Use Current GPS
+              </button>
+            </div>
             <div className="addr-grid">
               <input
                 className="form-input" placeholder="🏠 Street / Colony / Flat No."

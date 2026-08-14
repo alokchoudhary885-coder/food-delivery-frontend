@@ -11,12 +11,17 @@ export default function RestaurantCard({ restaurant, userLocation }) {
   const city = address?.city || '';
   const imgSrc = image || `https://placehold.co/400x220/1A1A2E/FF6B35?text=${encodeURIComponent(name)}`;
 
-  let calculatedKm = null;
-  if (userLocation) {
+  let distanceDisplay = restaurant.formattedDistance || null;
+  if (!distanceDisplay && userLocation && restaurant.location?.coordinates) {
+    const [rLng, rLat] = restaurant.location.coordinates;
+    const km = calculateDistance(userLocation.lat, userLocation.lng, rLat, rLng);
+    distanceDisplay = km < 1 ? `${Math.round(km * 1000)} m` : `${km} km`;
+  } else if (!distanceDisplay && userLocation && city) {
     const cityKey = city.toLowerCase().trim();
     const cityCoord = CITY_COORDS[cityKey];
     if (cityCoord) {
-      calculatedKm = calculateDistance(userLocation.lat, userLocation.lng, cityCoord.lat, cityCoord.lng);
+      const km = calculateDistance(userLocation.lat, userLocation.lng, cityCoord.lat, cityCoord.lng);
+      distanceDisplay = `${km} km`;
     }
   }
 
@@ -43,9 +48,9 @@ export default function RestaurantCard({ restaurant, userLocation }) {
               ⭐ {Number(rating).toFixed(1)}
             </span>
           )}
-          {calculatedKm !== null ? (
-            <span className="meta-item" style={{ color: 'var(--color-orange)', fontWeight: 600 }}>
-              📍 {calculatedKm} km
+          {distanceDisplay ? (
+            <span className="meta-item" style={{ color: 'var(--color-orange)', fontWeight: 700 }}>
+              📍 {distanceDisplay}
             </span>
           ) : city ? (
             <span className="meta-item">
