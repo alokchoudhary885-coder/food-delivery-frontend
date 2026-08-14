@@ -17,6 +17,8 @@ import Profile         from './pages/Profile';
 import CreateRestaurant from './pages/CreateRestaurant';
 import ForgotPassword   from './pages/ForgotPassword';
 
+import FoodieBot from './components/FoodieBot';
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -58,6 +60,7 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <FoodieBot />
       <Footer />
     </BrowserRouter>
   );
