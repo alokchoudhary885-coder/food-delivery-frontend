@@ -217,14 +217,14 @@ export default function Restaurants() {
                 <div className="filter-group">
                   <label className="form-label">Min Rating</label>
                   <select
-                    className="form-input"
+                    className="form-select rating-select-field"
                     value={minRating}
                     onChange={(e) => { setMinRating(e.target.value); setPage(1); }}
                   >
-                    <option value="">All Ratings</option>
-                    <option value="4.5">⭐ 4.5+</option>
-                    <option value="4.0">⭐ 4.0+</option>
-                    <option value="3.5">⭐ 3.5+</option>
+                    <option value="">🌟 All Ratings</option>
+                    <option value="4.5">⭐ 4.5+ (Top Rated)</option>
+                    <option value="4.0">⭐ 4.0+ (Popular)</option>
+                    <option value="3.5">⭐ 3.5+ (Good)</option>
                   </select>
                 </div>
               </motion.div>
@@ -328,6 +328,21 @@ export default function Restaurants() {
           overflow: hidden;
         }
         .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .rating-select-field {
+          background-color: #16152A !important;
+          color: #FFFFFF !important;
+          border: 1px solid var(--color-border);
+          font-weight: 600;
+          font-size: 0.95rem;
+          padding: 10px 14px;
+          border-radius: 12px;
+          cursor: pointer;
+        }
+        .rating-select-field option {
+          background-color: #16152A !important;
+          color: #FFFFFF !important;
+          padding: 10px 14px;
+        }
         .cuisine-chips-row {
           display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 2rem;
           scrollbar-width: none;

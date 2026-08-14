@@ -167,19 +167,34 @@ ul, ol { list-style: none; }
 }
 .form-input::placeholder { color: var(--color-text-muted); }
 
-.form-select {
-  background: var(--color-surface);
+.form-select, select, select.form-input {
+  color-scheme: dark;
+  background-color: #16152A;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
-  color: var(--color-text);
+  color: #FFFFFF;
   font-size: var(--text-base);
+  font-weight: 500;
   transition: var(--transition);
   width: 100%;
   cursor: pointer;
 }
-.form-select:focus { border-color: var(--color-orange); }
-.form-select option { background: #1A1A2E; }
+.form-select:focus, select:focus {
+  border-color: var(--color-orange);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.2);
+}
+select option, .form-select option, .form-input option {
+  background-color: #16152A !important;
+  color: #FFFFFF !important;
+  font-weight: 500;
+  padding: 10px 14px;
+}
+select option:hover, select option:focus, select option:checked {
+  background-color: #FF6B35 !important;
+  color: #FFFFFF !important;
+}
 
 /* ── Typography ─────────────────────────────────────────────────── */
 .heading-1 { font-size: var(--text-4xl); font-weight: 800; line-height: 1.15; }
