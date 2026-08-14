@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -18,10 +19,20 @@ import CreateRestaurant from './pages/CreateRestaurant';
 import ForgotPassword   from './pages/ForgotPassword';
 
 import FoodieBot from './components/FoodieBot';
+import { initNativeMobileHandlers } from './services/nativeMobile';
+
+function NativeAppBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    initNativeMobileHandlers(navigate);
+  }, [navigate]);
+  return null;
+}
 
 export default function App() {
   return (
     <BrowserRouter>
+      <NativeAppBridge />
       <Navbar />
       <Toaster
         position="top-right"
@@ -60,8 +71,9 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <FoodieBot />
+
       <Footer />
+      <FoodieBot />
     </BrowserRouter>
   );
 }

@@ -1,0 +1,20 @@
+{
+  "appId": "com.foodrush.app",
+  "appName": "FoodRush",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0F0E17",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0F0E17"
+    }
+  }
+}

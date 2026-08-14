@@ -1,0 +1,19 @@
+{
+  "name": "FoodRush — AI-Powered Food Delivery",
+  "short_name": "FoodRush",
+  "description": "Location-aware and AI-powered food delivery platform",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0F0E17",
+  "background_color": "#0F0E17",
+  "categories": ["food", "lifestyle", "shopping"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
