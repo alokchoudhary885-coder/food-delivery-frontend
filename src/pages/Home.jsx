@@ -309,19 +309,36 @@ export default function Home() {
 
         /* Responsive */
         @media(max-width:900px){
-          .hero-grid{grid-template-columns:1fr;text-align:center;gap:2rem}
+          .hero-grid{grid-template-columns:1fr;text-align:center;gap:1.5rem}
           .hero-sub{max-width:100%} .hero-actions{justify-content:center} .trust-badges{justify-content:center}
-          .hero-visual{display:block;margin-top:1.5rem;max-width:500px;margin-left:auto;margin-right:auto}
+          .hero-visual{display:block;margin-top:1.25rem;max-width:440px;margin-left:auto;margin-right:auto}
           .fc-top{top:-10px;left:0} .fc-bottom{bottom:-10px;right:0}
           .stats-grid{grid-template-columns:repeat(2,1fr)}
           .cuisines-grid{grid-template-columns:repeat(4,1fr)} .steps-grid{grid-template-columns:1fr}
           .features-grid{grid-template-columns:repeat(2,1fr)} .reviews-grid{grid-template-columns:1fr}
         }
         @media(max-width:600px){
-          .cuisines-grid{grid-template-columns:repeat(4,1fr)} .features-grid{grid-template-columns:1fr}
-          .stats-grid{grid-template-columns:repeat(2,1fr)} .cta-card{padding:3rem 1.5rem}
+          .hero { padding: calc(65px + max(env(safe-area-inset-top, 0px), 10px)) 0 2.5rem; }
+          .hero-title { font-size: clamp(1.75rem, 7.5vw, 2.4rem); margin-bottom: 0.75rem; }
+          .hero-badge { font-size: 0.75rem; padding: 5px 12px; margin-bottom: 0.75rem; }
+          .hero-sub { font-size: 0.88rem; margin-bottom: 1.25rem; line-height: 1.5; }
+          .hero-actions { flex-direction: column; gap: 8px; width: 100%; max-width: 320px; margin: 0 auto; }
+          .hero-actions .btn { width: 100%; padding: 11px 18px; font-size: 0.9rem; }
+          .trust-badges { flex-direction: column; gap: 6px; font-size: 0.76rem; margin-top: 1rem; }
+          .cuisines-section { padding: 2.5rem 0; }
+          .cuisines-grid{grid-template-columns:repeat(4,1fr); gap: 8px;}
+          .cuisine-card { padding: 0.85rem 0.5rem; gap: 6px; }
+          .cuisine-emoji { font-size: 1.6rem; }
+          .cuisine-label { font-size: 0.72rem; }
+          .features-grid{grid-template-columns:1fr}
+          .stats-grid{grid-template-columns:repeat(2,1fr); gap: 8px;}
+          .stat-card { padding: 1.25rem 1rem; }
+          .stat-value { font-size: 1.75rem; }
+          .cta-card{padding:2.5rem 1.25rem}
+          .cta-title { font-size: 1.6rem; }
         }
       `}</style>
     </div>
   );
 }
+

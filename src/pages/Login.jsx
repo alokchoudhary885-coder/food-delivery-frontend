@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
 import {
@@ -13,8 +14,9 @@ import {
 } from '../config/firebase';
 
 export default function Login() {
-  const [loginMethod, setLoginMethod] = useState('otp');
+  const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' | 'email'
   const [form, setForm]               = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone]             = useState('');
   const [otpDigits, setOtpDigits]     = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent]         = useState(false);
@@ -92,12 +94,13 @@ export default function Login() {
       console.error('Google OAuth Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         toast.error('Google login popup was closed.');
-      } else if (err.code === 'auth/popup-blocked') {
-        toast.error('Google popup was blocked by browser. Please allow popups.');
+      } else if (err.code === 'auth/popup-blocked' || Capacitor.isNativePlatform()) {
+        toast.error('Mobile Google login: Please use 1-Tap Mobile OTP or Password on Android App.');
+        setLoginMethod('otp');
       } else if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
-        toast.error('Firebase API Key not configured. Add VITE_FIREBASE_API_KEY in Vercel settings.');
+        toast.error('Firebase API Key not configured. Use Mobile OTP or Password.');
       } else {
-        toast.error(err.response?.data?.message || err.message || 'Google OAuth Sign-In failed.');
+        toast.error(err.response?.data?.message || err.message || 'Google Sign-In unavailable on this device. Use Mobile OTP.');
       }
     } finally {
       setLoading(false);
@@ -126,7 +129,7 @@ export default function Login() {
       toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
       firebaseSuccess = true;
     } catch (fbErr) {
-      console.warn('Firebase Phone Auth failed, using FoodRush SMS engine:', fbErr);
+      console.warn('Firebase Phone Auth fallback to FoodRush SMS engine:', fbErr);
       if (window.recaptchaVerifier) {
         try { window.recaptchaVerifier.clear(); } catch {}
         window.recaptchaVerifier = null;
@@ -140,7 +143,7 @@ export default function Login() {
         setConfirmationResult(null);
         setOtpSent(true);
         setTimer(30);
-        toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲 Check your SMS messages`);
+        toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
       }
@@ -189,7 +192,7 @@ export default function Login() {
       toast.success(`Mobile verified successfully! Welcome 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please enter correct OTP.');
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -215,6 +218,9 @@ export default function Login() {
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
+    if (!form.email || !form.password) {
+      return toast.error('Please enter both email and password.');
+    }
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', form);
@@ -222,7 +228,7 @@ export default function Login() {
       toast.success(`Welcome back, ${data.data.user.name}! 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
+      toast.error(err.response?.data?.message || 'Invalid email or password. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -236,11 +242,11 @@ export default function Login() {
         className="auth-card glass"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.35 }}
       >
         <div className="auth-logo">🍕 <span className="gradient-text">FoodRush</span></div>
         <h1 className="auth-title">Welcome back!</h1>
-        <p className="text-muted" style={{ marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+        <p className="text-muted" style={{ marginBottom: '1.25rem', fontSize: '0.88rem' }}>
           Continue with your account
         </p>
 
@@ -250,7 +256,7 @@ export default function Login() {
           className="google-btn"
           onClick={handleGoogleLogin}
           disabled={loading}
-          style={{ marginBottom: '1.25rem' }}
+          style={{ marginBottom: '1rem' }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -302,7 +308,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', margin: '-4px 0 8px' }}>
+              <p style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)', margin: '-4px 0 6px' }}>
                 By continuing, you agree to our Terms & Privacy Policy.
               </p>
 
@@ -316,9 +322,9 @@ export default function Login() {
             </form>
           ) : (
             <form onSubmit={handleVerifyOTP} className="auth-form">
-              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Verify mobile number</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Verify mobile number</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
                   OTP sent to <span style={{ color: '#fff', fontWeight: 700 }}>+91 ******{phone.slice(-4)}</span>
                 </p>
               </div>
@@ -340,25 +346,26 @@ export default function Login() {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.25rem 0' }}>
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
                   onClick={() => setOtpSent(false)}
+                  style={{ fontSize: '0.78rem' }}
                 >
-                  ← Change mobile number
+                  ← Change number
                 </button>
 
                 {timer > 0 ? (
-                  <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                    Resend OTP in {timer}s
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    Resend in {timer}s
                   </span>
                 ) : (
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={handleSendOTP}
-                    style={{ color: 'var(--color-orange)', fontWeight: 700 }}
+                    style={{ color: 'var(--color-orange)', fontWeight: 700, fontSize: '0.78rem' }}
                   >
                     Resend OTP 🔄
                   </button>
@@ -396,15 +403,29 @@ export default function Login() {
                   Forgot Password?
                 </Link>
               </div>
-              <input
-                id="login-password"
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  style={{ paddingRight: 42 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', fontSize: '1rem', color: 'var(--color-text-muted)'
+                  }}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             <button
@@ -412,14 +433,14 @@ export default function Login() {
               type="submit"
               className="btn btn-primary btn-full btn-lg"
               disabled={loading}
-              style={{ marginTop: '0.5rem' }}
+              style={{ marginTop: '0.35rem' }}
             >
               {loading ? 'Logging in...' : 'Login →'}
             </button>
           </form>
         )}
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+        <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
           Account nahi hai?{' '}
           <Link to="/register" style={{ color: 'var(--color-orange)', fontWeight: 600 }}>
             Sign up free
@@ -429,15 +450,15 @@ export default function Login() {
 
       <style>{`
         .auth-page {
-          min-height: 100vh; padding-top: 70px; position: relative;
+          min-height: 100vh;
           display: flex; align-items: center; justify-content: center;
           background: radial-gradient(ellipse at center, rgba(255,107,53,0.06) 0%, transparent 65%);
-          padding: 100px 1rem 2rem;
+          padding: calc(75px + max(env(safe-area-inset-top, 0px), 10px)) 1rem 2rem;
         }
-        .auth-card { width: 100%; max-width: 440px; padding: 2.25rem; }
-        .auth-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.25rem; }
-        .auth-title { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.4rem; }
-        .auth-form { display: flex; flex-direction: column; gap: 1.15rem; }
+        .auth-card { width: 100%; max-width: 440px; padding: 2rem 1.75rem; }
+        .auth-logo { font-size: 1.4rem; font-weight: 800; margin-bottom: 1rem; }
+        .auth-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.35rem; }
+        .auth-form { display: flex; flex-direction: column; gap: 1rem; }
 
         .phone-prefix {
           font-size: 0.95rem; font-weight: 700; color: var(--color-text);
@@ -449,29 +470,31 @@ export default function Login() {
           width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
           padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.06);
           border: 1px solid var(--color-border); color: var(--color-text); font-weight: 600;
-          font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+          font-size: 0.88rem; cursor: pointer; transition: all 0.2s;
         }
         .google-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
 
-        .auth-divider { display: flex; align-items: center; margin: 1rem 0; color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; }
+        .auth-divider { display: flex; align-items: center; margin: 0.85rem 0; color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; }
         .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
         .auth-divider span { padding: 0 12px; }
 
-        .login-tabs { display: flex; gap: 8px; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 12px; margin-bottom: 1.25rem; border: 1px solid var(--color-border); }
-        .login-tab { flex: 1; padding: 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; background: none; border: none; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s; }
+        .login-tabs { display: flex; gap: 8px; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 12px; margin-bottom: 1.15rem; border: 1px solid var(--color-border); }
+        .login-tab { flex: 1; padding: 8px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; background: none; border: none; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s; }
         .login-tab.active { background: rgba(255,107,53,0.15); color: var(--color-orange); border: 1px solid rgba(255,107,53,0.3); }
 
         /* Clean 6-Digit Box Grid */
-        .otp-box-grid { display: flex; gap: 8px; justify-content: center; margin: 0.5rem 0 1rem; }
+        .otp-box-grid { display: flex; gap: 6px; justify-content: center; margin: 0.25rem 0 0.75rem; }
         .otp-single-box {
-          width: 46px; height: 52px; text-align: center; font-size: 1.25rem; font-weight: 800;
+          width: 44px; height: 50px; text-align: center; font-size: 1.2rem; font-weight: 800;
           border-radius: 12px; border: 1px solid var(--color-border); background: rgba(255,255,255,0.05);
           color: var(--color-orange); outline: none; transition: all 0.2s;
         }
         .otp-single-box:focus { border-color: var(--color-orange); box-shadow: 0 0 12px rgba(255,107,53,0.3); background: rgba(255,107,53,0.08); }
         
         @media (max-width: 480px) {
-          .otp-single-box { width: 38px; height: 46px; font-size: 1.1rem; }
+          .auth-card { padding: 1.5rem 1.25rem; }
+          .auth-title { font-size: 1.4rem; }
+          .otp-single-box { width: 38px; height: 46px; font-size: 1.05rem; }
         }
       `}</style>
     </div>
