@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 import api from '../api/axios';
 import useAuthStore from '../store/authStore';
 import {
@@ -9,16 +10,13 @@ import {
   googleProvider,
   signInWithPopup,
 } from '../config/firebase';
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-} from 'firebase/auth';
 
 export default function Register() {
-  const [form, setForm]       = useState({ name: '', email: '', password: '', role: 'customer', phone: '' });
-  const [loading, setLoading] = useState(false);
-  const { login }             = useAuthStore();
-  const navigate              = useNavigate();
+  const [form, setForm]               = useState({ name: '', email: '', password: '', role: 'customer', phone: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const { login }                     = useAuthStore();
+  const navigate                      = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,58 +24,32 @@ export default function Register() {
       return toast.error('Password must be at least 6 characters');
     }
     setLoading(true);
-    let firebaseSuccess = false;
 
     try {
-      // 1. Create User in Firebase Email Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      const firebaseUser = userCredential.user;
-
-      // 2. Send Real Email Verification Link
-      await sendEmailVerification(firebaseUser);
-      toast.success('Verification email sent! Please check your inbox 📬', { duration: 6000 });
-
-      // 3. Obtain Firebase ID Token & Sync with Backend MongoDB
-      const idToken = await firebaseUser.getIdToken(true);
-      const { data } = await api.post('/auth/firebase-login', {
-        idToken,
-        email: form.email,
+      // 1. Direct High-Speed MongoDB Registration with Secure Hashing
+      const { data } = await api.post('/auth/register', {
         name: form.name,
-        phone: form.phone,
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
+        phone: form.phone.replace(/\D/g, '').slice(-10),
         role: form.role,
-        authProvider: 'email',
-        uid: firebaseUser.uid,
       });
 
       login(data.data.user, data.data.token);
-      firebaseSuccess = true;
+      toast.success(`Welcome to FoodRush, ${data.data.user.name}! 🎉`);
       navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
-    } catch (fbErr) {
-      console.warn('Firebase Email Signup Error:', fbErr);
-      if (fbErr.code === 'auth/email-already-in-use') {
-        toast.error('Email is already registered. Please login instead.');
-      } else if (fbErr.code === 'auth/invalid-email') {
-        toast.error('Please provide a valid email address.');
-      }
-    }
-
-    if (!firebaseSuccess) {
-      try {
-        const { data } = await api.post('/auth/register', form);
-        login(data.data.user, data.data.token);
-        toast.success(`Welcome, ${data.data.user.name}! 🎉`);
-        navigate(data.data.user.role === 'owner' ? '/dashboard' : '/restaurants');
-      } catch (err) {
-        toast.error(err.response?.data?.message || 'Registration failed');
-      } finally {
-        setLoading(false);
-      }
-    } else {
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Registration failed. Please check your details.');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (Capacitor.isNativePlatform()) {
+      return toast('Google Web Login is not supported inside Android APK. Please use Mobile OTP or Password.', { icon: '📱' });
+    }
+
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -101,7 +73,7 @@ export default function Register() {
       if (err.code === 'auth/popup-closed-by-user') {
         toast.error('Google signup popup was closed.');
       } else {
-        toast.error(err.response?.data?.message || err.message || 'Google OAuth Sign-Up failed.');
+        toast.error(err.response?.data?.message || err.message || 'Google Sign-Up failed.');
       }
     } finally {
       setLoading(false);
@@ -114,21 +86,21 @@ export default function Register() {
         className="auth-card glass"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.35 }}
       >
         <div className="auth-logo">🍕 <span className="gradient-text">FoodRush</span></div>
         <h1 className="auth-title">Create account</h1>
-        <p className="text-muted" style={{ marginBottom: '1.25rem', fontSize: '0.9rem' }}>
-          Join thousands of food lovers
+        <p className="text-muted" style={{ marginBottom: '1.25rem', fontSize: '0.88rem' }}>
+          Sign up to order food or manage your restaurant
         </p>
 
-        {/* Real Google OAuth */}
+        {/* Real Google OAuth Button */}
         <button
           type="button"
           className="google-btn"
           onClick={handleGoogleLogin}
           disabled={loading}
-          style={{ marginBottom: '1.25rem' }}
+          style={{ marginBottom: '1rem' }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -140,94 +112,156 @@ export default function Register() {
         </button>
 
         <div className="auth-divider">
-          <span>OR REGISTER WITH EMAIL</span>
+          <span>OR SIGN UP WITH EMAIL</span>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label className="form-label">Full Name</label>
-            <input id="reg-name" type="text" className="form-input" placeholder="Alok Kumar"
-              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Alok Choudhary"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Email</label>
-            <input id="reg-email" type="email" className="form-input" placeholder="you@example.com"
-              value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            <label className="form-label">Email Address</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Phone (optional)</label>
-            <input id="reg-phone" type="tel" className="form-input" placeholder="+91 98765 43210"
-              value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <label className="form-label">Mobile Number (Optional)</label>
+            <input
+              type="tel"
+              maxLength={10}
+              className="form-input"
+              placeholder="9876543210"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
+            />
           </div>
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input id="reg-password" type="password" className="form-input" placeholder="Min 6 characters"
-              value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">I am a</label>
-            <div className="role-toggle">
-              {['customer', 'owner'].map((r) => (
-                <button
-                  key={r} type="button"
-                  className={`role-btn ${form.role === r ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, role: r })}
-                >
-                  {r === 'customer' ? '🛒 Customer' : '🏪 Restaurant Owner'}
-                </button>
-              ))}
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-input"
+                placeholder="At least 6 characters"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+                style={{ paddingRight: 42 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', fontSize: '1rem', color: 'var(--color-text-muted)'
+                }}
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
           </div>
 
-          <button id="reg-submit" type="submit" className="btn btn-primary btn-full btn-lg"
-            disabled={loading} style={{ marginTop: '0.5rem' }}>
-            {loading ? 'Creating account...' : 'Create Account →'}
+          <div className="form-group">
+            <label className="form-label">I want to</label>
+            <div className="role-selector">
+              <label className={`role-option ${form.role === 'customer' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="role"
+                  value="customer"
+                  checked={form.role === 'customer'}
+                  onChange={() => setForm({ ...form, role: 'customer' })}
+                />
+                🍕 Order Food
+              </label>
+              <label className={`role-option ${form.role === 'owner' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="role"
+                  value="owner"
+                  checked={form.role === 'owner'}
+                  onChange={() => setForm({ ...form, role: 'owner' })}
+                />
+                🏪 Sell Food (Owner)
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary btn-full btn-lg"
+            disabled={loading}
+            style={{ marginTop: '0.25rem' }}
+          >
+            {loading ? 'Creating Account...' : 'Sign Up Free 🎉'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+        <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
           Pehle se account hai?{' '}
-          <Link to="/login" style={{ color: 'var(--color-orange)', fontWeight: 600 }}>Login</Link>
+          <Link to="/login" style={{ color: 'var(--color-orange)', fontWeight: 600 }}>
+            Login karein
+          </Link>
         </p>
       </motion.div>
 
       <style>{`
         .auth-page {
-          min-height: 100vh; padding-top: 70px;
+          min-height: 100vh;
           display: flex; align-items: center; justify-content: center;
           background: radial-gradient(ellipse at center, rgba(255,107,53,0.06) 0%, transparent 65%);
-          padding: 100px 1rem 2rem;
+          padding: calc(75px + max(env(safe-area-inset-top, 0px), 10px)) 1rem 2rem;
         }
-        .auth-card { width: 100%; max-width: 440px; padding: 2.25rem; }
-        .auth-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 1.25rem; }
-        .auth-title { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.4rem; }
-        .auth-form { display: flex; flex-direction: column; gap: 1.15rem; }
+        .auth-card { width: 100%; max-width: 440px; padding: 2rem 1.75rem; }
+        .auth-logo { font-size: 1.4rem; font-weight: 800; margin-bottom: 1rem; }
+        .auth-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.35rem; }
+        .auth-form { display: flex; flex-direction: column; gap: 0.95rem; }
 
         .google-btn {
           width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
           padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.06);
           border: 1px solid var(--color-border); color: var(--color-text); font-weight: 600;
-          font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+          font-size: 0.88rem; cursor: pointer; transition: all 0.2s;
         }
         .google-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
 
-        .auth-divider { display: flex; align-items: center; margin: 1rem 0; color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; }
+        .auth-divider { display: flex; align-items: center; margin: 0.75rem 0; color: var(--color-text-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; }
         .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
-        .auth-divider span { padding: 0 12px; }
+        .auth-divider span { padding: 0 10px; }
 
-        .role-toggle { display: flex; gap: 8px; }
-        .role-btn {
-          flex: 1; padding: 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 600;
-          background: var(--color-surface); border: 1px solid var(--color-border);
-          color: var(--color-text-muted); transition: all 0.2s; cursor: pointer;
+        .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .role-option {
+          display: flex; align-items: center; justify-content: center; gap: 6px;
+          padding: 10px 8px; border-radius: 10px; border: 1px solid var(--color-border);
+          background: rgba(255,255,255,0.03); color: var(--color-text-muted);
+          font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
-        .role-btn.active {
-          background: rgba(255,107,53,0.15); border-color: var(--color-orange);
-          color: var(--color-orange);
+        .role-option input { display: none; }
+        .role-option.active {
+          border-color: var(--color-orange); background: rgba(255,107,53,0.12);
+          color: var(--color-orange); font-weight: 700;
+        }
+
+        @media (max-width: 480px) {
+          .auth-card { padding: 1.5rem 1.25rem; }
+          .auth-title { font-size: 1.4rem; }
         }
       `}</style>
     </div>

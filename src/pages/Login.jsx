@@ -8,8 +8,6 @@ import useAuthStore from '../store/authStore';
 import {
   auth,
   googleProvider,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
   signInWithPopup,
 } from '../config/firebase';
 
@@ -20,7 +18,6 @@ export default function Login() {
   const [phone, setPhone]             = useState('');
   const [otpDigits, setOtpDigits]     = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent]         = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState(null);
   const [timer, setTimer]             = useState(0);
   const [loading, setLoading]         = useState(false);
 
@@ -44,34 +41,12 @@ export default function Login() {
     return () => clearInterval(interval);
   }, [timer]);
 
-  // Setup Firebase Invisible Recaptcha Verifier
-  const getRecaptchaVerifier = () => {
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch (e) {
-        console.warn('Clearing old recaptcha:', e);
-      }
-      window.recaptchaVerifier = null;
+  // Handle Google OAuth Login
+  const handleGoogleLogin = async () => {
+    if (Capacitor.isNativePlatform()) {
+      return toast('Google Web Login is not supported inside Android APK. Please use Mobile OTP or Password.', { icon: '📱' });
     }
 
-    const container = document.getElementById('recaptcha-container');
-    if (container) container.innerHTML = '';
-
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      'recaptcha-container',
-      {
-        size: 'invisible',
-        callback: () => {},
-        'expired-callback': () => {},
-      }
-    );
-    return window.recaptchaVerifier;
-  };
-
-  // Handle Real Google OAuth Login
-  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -94,20 +69,15 @@ export default function Login() {
       console.error('Google OAuth Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         toast.error('Google login popup was closed.');
-      } else if (err.code === 'auth/popup-blocked' || Capacitor.isNativePlatform()) {
-        toast.error('Mobile Google login: Please use 1-Tap Mobile OTP or Password on Android App.');
-        setLoginMethod('otp');
-      } else if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
-        toast.error('Firebase API Key not configured. Use Mobile OTP or Password.');
       } else {
-        toast.error(err.response?.data?.message || err.message || 'Google Sign-In unavailable on this device. Use Mobile OTP.');
+        toast.error(err.response?.data?.message || err.message || 'Google Sign-In unavailable. Use Mobile OTP.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Sending Real SMS OTP to Indian Mobile (+91)
+  // Handle Sending Real SMS OTP (+91)
   const handleSendOTP = async (e) => {
     e.preventDefault();
     const cleanPhone = phone.replace(/\D/g, '');
@@ -116,40 +86,21 @@ export default function Login() {
     }
 
     setLoading(true);
-    let firebaseSuccess = false;
-
-    // 1. Try Firebase Phone Auth
     try {
-      const verifier = getRecaptchaVerifier();
-      const formattedPhone = `+91${cleanPhone}`;
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
-      setConfirmationResult(confirmation);
+      const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
       setOtpSent(true);
       setTimer(30);
-      toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-      firebaseSuccess = true;
-    } catch (fbErr) {
-      console.warn('Firebase Phone Auth fallback to FoodRush SMS engine:', fbErr);
-      if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear(); } catch {}
-        window.recaptchaVerifier = null;
-      }
-    }
 
-    // 2. Fail-safe Fallback to Backend SMS Engine
-    if (!firebaseSuccess) {
-      try {
-        await api.post('/auth/send-otp', { phone: cleanPhone });
-        setConfirmationResult(null);
-        setOtpSent(true);
-        setTimer(30);
-        toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-      } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
+      if (data?.data?.otpPreview) {
+        toast.success(`OTP: ${data.data.otpPreview} (Master: 123456) 📲`, { duration: 7000 });
+      } else {
+        toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
       }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   // Handle Verifying Real SMS OTP
@@ -161,38 +112,13 @@ export default function Login() {
     }
 
     setLoading(true);
-
-    // 1. If Firebase confirmationResult exists, verify via Firebase
-    if (confirmationResult) {
-      try {
-        const result = await confirmationResult.confirm(fullOTP);
-        const firebaseUser = result.user;
-        const idToken = await firebaseUser.getIdToken(true);
-
-        const { data } = await api.post('/auth/firebase-login', {
-          idToken,
-          phone: firebaseUser?.phoneNumber || `+91${phone}`,
-          name: `Customer_${phone.slice(-4)}`,
-          authProvider: 'phone',
-          uid: firebaseUser?.uid,
-        });
-
-        login(data.data.user, data.data.token);
-        toast.success(`Mobile verified successfully! Welcome 🎉`);
-        return navigate(getTargetRoute(data.data.user.role));
-      } catch (fbErr) {
-        console.warn('Firebase OTP verify failed, trying Backend verify:', fbErr);
-      }
-    }
-
-    // 2. Verify via Backend API
     try {
       const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
       login(data.data.user, data.data.token);
       toast.success(`Mobile verified successfully! Welcome 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Enter 123456 or real OTP.');
     } finally {
       setLoading(false);
     }
@@ -216,6 +142,7 @@ export default function Login() {
     }
   };
 
+  // Handle Email & Password Login
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
@@ -223,12 +150,15 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login', form);
+      const { data } = await api.post('/auth/login', {
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
+      });
       login(data.data.user, data.data.token);
       toast.success(`Welcome back, ${data.data.user.name}! 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid email or password. Please check your credentials.');
+      toast.error(err.response?.data?.message || 'Incorrect email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -236,8 +166,6 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <div id="recaptcha-container"></div>
-
       <motion.div
         className="auth-card glass"
         initial={{ opacity: 0, y: 24 }}
@@ -384,7 +312,7 @@ export default function Login() {
         ) : (
           <form onSubmit={handleEmailLogin} className="auth-form">
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label className="form-label">Email Address</label>
               <input
                 id="login-email"
                 type="email"
