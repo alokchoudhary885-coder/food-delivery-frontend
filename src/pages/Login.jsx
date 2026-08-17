@@ -90,12 +90,7 @@ export default function Login() {
       const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
       setOtpSent(true);
       setTimer(30);
-
-      if (data?.data?.otpPreview) {
-        toast.success(`OTP: ${data.data.otpPreview} (Master: 123456) 📲`, { duration: 7000 });
-      } else {
-        toast.success(`Real SMS OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-      }
+      toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
     } finally {
