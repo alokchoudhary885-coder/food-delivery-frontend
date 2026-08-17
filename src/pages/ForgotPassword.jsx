@@ -67,8 +67,9 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
+      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
       const { data } = await api.post('/auth/reset-password', {
-        phone,
+        phone: cleanPhone,
         otp: fullOTP,
         newPassword,
       });
