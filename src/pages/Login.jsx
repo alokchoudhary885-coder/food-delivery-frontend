@@ -12,7 +12,7 @@ import {
 } from '../config/firebase';
 
 export default function Login() {
-  const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' | 'email'
+  const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'otp'
   const [form, setForm]               = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone]             = useState('');
@@ -44,7 +44,7 @@ export default function Login() {
   // Handle Google OAuth Login
   const handleGoogleLogin = async () => {
     if (Capacitor.isNativePlatform()) {
-      return toast('Google Web Login is not supported inside Android APK. Please use Mobile OTP or Password.', { icon: '📱' });
+      return toast('Google Web Login is not supported inside Android APK. Please use Mobile Number or Password.', { icon: '📱' });
     }
 
     setLoading(true);
@@ -70,7 +70,7 @@ export default function Login() {
       if (err.code === 'auth/popup-closed-by-user') {
         toast.error('Google login popup was closed.');
       } else {
-        toast.error(err.response?.data?.message || err.message || 'Google Sign-In unavailable. Use Mobile OTP.');
+        toast.error(err.response?.data?.message || err.message || 'Google Sign-In unavailable.');
       }
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/send-otp', { phone: cleanPhone });
+      await api.post('/auth/send-otp', { phone: cleanPhone });
       setOtpSent(true);
       setTimer(30);
       toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
@@ -108,12 +108,13 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/verify-otp', { phone, otp: fullOTP });
+      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+      const { data } = await api.post('/auth/verify-otp', { phone: cleanPhone, otp: fullOTP });
       login(data.data.user, data.data.token);
       toast.success(`Mobile verified successfully! Welcome 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Enter 123456 or real OTP.');
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -137,23 +138,23 @@ export default function Login() {
     }
   };
 
-  // Handle Email & Password Login
+  // Handle Mobile Number / Email & Password Login
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
-      return toast.error('Please enter both email and password.');
+      return toast.error('Please enter your mobile number or email, and password.');
     }
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', {
-        email: form.email.toLowerCase().trim(),
+        identifier: form.email.trim(),
         password: form.password,
       });
       login(data.data.user, data.data.token);
       toast.success(`Welcome back, ${data.data.user.name}! 🎉`);
       navigate(getTargetRoute(data.data.user.role));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Incorrect email or password. Please try again.');
+      toast.error(err.response?.data?.message || 'Incorrect mobile/email or password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -198,17 +199,17 @@ export default function Login() {
         <div className="login-tabs">
           <button
             type="button"
+            className={`login-tab ${loginMethod === 'email' ? 'active' : ''}`}
+            onClick={() => setLoginMethod('email')}
+          >
+            🔑 Mobile / Email Password
+          </button>
+          <button
+            type="button"
             className={`login-tab ${loginMethod === 'otp' ? 'active' : ''}`}
             onClick={() => setLoginMethod('otp')}
           >
             📱 Mobile OTP
-          </button>
-          <button
-            type="button"
-            className={`login-tab ${loginMethod === 'email' ? 'active' : ''}`}
-            onClick={() => setLoginMethod('email')}
-          >
-            📧 Password
           </button>
         </div>
 
@@ -307,15 +308,16 @@ export default function Login() {
         ) : (
           <form onSubmit={handleEmailLogin} className="auth-form">
             <div className="form-group">
-              <label className="form-label">Email Address</label>
+              <label className="form-label">Mobile Number or Email</label>
               <input
                 id="login-email"
-                type="email"
+                type="text"
                 className="form-input"
-                placeholder="you@example.com"
+                placeholder="e.g. 6352711294 or you@example.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
+                autoComplete="username"
               />
             </div>
 
