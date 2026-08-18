@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -12,36 +12,21 @@ import {
 } from '../config/firebase';
 
 export default function Login() {
-  const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'otp'
-  const [form, setForm]               = useState({ email: '', password: '' });
+  const [form, setForm]                 = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone]             = useState('');
-  const [otpDigits, setOtpDigits]     = useState(['', '', '', '', '', '']);
-  const [otpSent, setOtpSent]         = useState(false);
-  const [timer, setTimer]             = useState(0);
-  const [loading, setLoading]         = useState(false);
+  const [loading, setLoading]           = useState(false);
 
   const { login } = useAuthStore();
   const navigate  = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || null;
-  const otpInputRefs = useRef([]);
 
   const getTargetRoute = (userRole) => {
     if (redirectTarget) return redirectTarget;
     return userRole === 'owner' ? '/dashboard' : '/restaurants';
   };
 
-  // Resend Timer Cooldown
-  useEffect(() => {
-    let interval = null;
-    if (timer > 0) {
-      interval = setInterval(() => setTimer((t) => t - 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [timer]);
-
-  // Handle Google OAuth Login
+  // Handle Google OAuth Login (Desktop & Mobile Web)
   const handleGoogleLogin = async () => {
     if (Capacitor.isNativePlatform()) {
       return toast('Google Web Login is not supported inside Android APK. Please use Mobile Number or Password.', { icon: '📱' });
@@ -77,69 +62,8 @@ export default function Login() {
     }
   };
 
-  // Handle Sending Real SMS OTP (+91)
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length !== 10) {
-      return toast.error('Please enter a valid 10-digit Indian mobile number.');
-    }
-
-    setLoading(true);
-    try {
-      await api.post('/auth/send-otp', { phone: cleanPhone });
-      setOtpSent(true);
-      setTimer(30);
-      toast.success(`OTP sent to +91 ******${cleanPhone.slice(-4)} 📲`);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send SMS OTP.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Verifying Real SMS OTP
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-    const fullOTP = otpDigits.join('');
-    if (fullOTP.length !== 6) {
-      return toast.error('Please enter complete 6-digit OTP');
-    }
-
-    setLoading(true);
-    try {
-      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-      const { data } = await api.post('/auth/verify-otp', { phone: cleanPhone, otp: fullOTP });
-      login(data.data.user, data.data.token);
-      toast.success(`Mobile verified successfully! Welcome 🎉`);
-      navigate(getTargetRoute(data.data.user.role));
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle 6-Digit Box Input Focus & Navigation
-  const handleDigitChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = value.slice(-1);
-    setOtpDigits(newDigits);
-
-    if (value && index < 5) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  // Handle Mobile Number / Email & Password Login
-  const handleEmailLogin = async (e) => {
+  // Handle Mobile Number / Email & Password Login (0.1s instant login)
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
       return toast.error('Please enter your mobile number or email, and password.');
@@ -192,178 +116,69 @@ export default function Login() {
         </button>
 
         <div className="auth-divider">
-          <span>OR</span>
+          <span>OR SIGN IN WITH PASSWORD</span>
         </div>
 
-        {/* Auth Method Selector */}
-        <div className="login-tabs">
-          <button
-            type="button"
-            className={`login-tab ${loginMethod === 'email' ? 'active' : ''}`}
-            onClick={() => setLoginMethod('email')}
-          >
-            🔑 Mobile / Email Password
-          </button>
-          <button
-            type="button"
-            className={`login-tab ${loginMethod === 'otp' ? 'active' : ''}`}
-            onClick={() => setLoginMethod('otp')}
-          >
-            📱 Mobile OTP
-          </button>
-        </div>
+        {/* Direct Phone / Email + Password Login Form */}
+        <form onSubmit={handleLogin} className="auth-form">
+          <div className="form-group">
+            <label className="form-label">Mobile Number or Email</label>
+            <input
+              id="login-email"
+              type="text"
+              className="form-input"
+              placeholder="e.g. 6352711294 or you@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              autoComplete="username"
+            />
+          </div>
 
-        {loginMethod === 'otp' ? (
-          !otpSent ? (
-            <form onSubmit={handleSendOTP} className="auth-form">
-              <div className="form-group">
-                <label className="form-label">Enter Mobile Number</label>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span className="phone-prefix">+91</span>
-                  <input
-                    type="tel"
-                    maxLength={10}
-                    className="form-input"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <p style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)', margin: '-4px 0 6px' }}>
-                By continuing, you agree to our Terms & Privacy Policy.
-              </p>
-
-              <button
-                type="submit"
-                className="btn btn-primary btn-full btn-lg"
-                disabled={loading || phone.length !== 10}
-              >
-                {loading ? 'Sending OTP...' : 'Send OTP 📲'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOTP} className="auth-form">
-              <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Verify mobile number</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                  OTP sent to <span style={{ color: '#fff', fontWeight: 700 }}>+91 ******{phone.slice(-4)}</span>
-                </p>
-              </div>
-
-              {/* Clean 6-Digit OTP Box Grid */}
-              <div className="otp-box-grid">
-                {otpDigits.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={(el) => (otpInputRefs.current[idx] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    className="otp-single-box"
-                    value={digit}
-                    onChange={(e) => handleDigitChange(idx, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(idx, e)}
-                  />
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.25rem 0' }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setOtpSent(false)}
-                  style={{ fontSize: '0.78rem' }}
-                >
-                  ← Change number
-                </button>
-
-                {timer > 0 ? (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    Resend in {timer}s
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={handleSendOTP}
-                    style={{ color: 'var(--color-orange)', fontWeight: 700, fontSize: '0.78rem' }}
-                  >
-                    Resend OTP 🔄
-                  </button>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary btn-full btn-lg"
-                disabled={loading || otpDigits.join('').length !== 6}
-              >
-                {loading ? 'Verifying OTP...' : 'Verify & Continue 🎉'}
-              </button>
-            </form>
-          )
-        ) : (
-          <form onSubmit={handleEmailLogin} className="auth-form">
-            <div className="form-group">
-              <label className="form-label">Mobile Number or Email</label>
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label className="form-label" style={{ margin: 0 }}>Password</label>
+              <Link to="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600 }}>
+                Forgot Password?
+              </Link>
+            </div>
+            <div style={{ position: 'relative' }}>
               <input
-                id="login-email"
-                type="text"
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                placeholder="e.g. 6352711294 or you@example.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                autoComplete="username"
+                style={{ paddingRight: 42 }}
+                autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', fontSize: '1rem', color: 'var(--color-text-muted)',
+                  cursor: 'pointer'
+                }}
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
+          </div>
 
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <label className="form-label" style={{ margin: 0 }}>Password</label>
-                <Link to="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600 }}>
-                  Forgot Password?
-                </Link>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  className="form-input"
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                  style={{ paddingRight: 42 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', fontSize: '1rem', color: 'var(--color-text-muted)'
-                  }}
-                  aria-label="Toggle password visibility"
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </button>
-              </div>
-            </div>
-
-            <button
-              id="login-submit"
-              type="submit"
-              className="btn btn-primary btn-full btn-lg"
-              disabled={loading}
-              style={{ marginTop: '0.35rem' }}
-            >
-              {loading ? 'Logging in...' : 'Login →'}
-            </button>
-          </form>
-        )}
+          <button
+            id="login-submit"
+            type="submit"
+            className="btn btn-primary btn-full btn-lg"
+            disabled={loading}
+            style={{ marginTop: '0.35rem' }}
+          >
+            {loading ? 'Logging in...' : 'Login →'}
+          </button>
+        </form>
 
         <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
           Account nahi hai?{' '}
@@ -384,12 +199,6 @@ export default function Login() {
         .auth-logo { font-size: 1.4rem; font-weight: 800; margin-bottom: 1rem; }
         .auth-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.35rem; }
         .auth-form { display: flex; flex-direction: column; gap: 1rem; }
-
-        .phone-prefix {
-          font-size: 0.95rem; font-weight: 700; color: var(--color-text);
-          background: rgba(255,255,255,0.05); padding: 12px 14px; border-radius: 12px;
-          border: 1px solid var(--color-border);
-        }
         
         .google-btn {
           width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -403,23 +212,9 @@ export default function Login() {
         .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
         .auth-divider span { padding: 0 12px; }
 
-        .login-tabs { display: flex; gap: 8px; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 12px; margin-bottom: 1.15rem; border: 1px solid var(--color-border); }
-        .login-tab { flex: 1; padding: 8px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; background: none; border: none; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s; }
-        .login-tab.active { background: rgba(255,107,53,0.15); color: var(--color-orange); border: 1px solid rgba(255,107,53,0.3); }
-
-        /* Clean 6-Digit Box Grid */
-        .otp-box-grid { display: flex; gap: 6px; justify-content: center; margin: 0.25rem 0 0.75rem; }
-        .otp-single-box {
-          width: 44px; height: 50px; text-align: center; font-size: 1.2rem; font-weight: 800;
-          border-radius: 12px; border: 1px solid var(--color-border); background: rgba(255,255,255,0.05);
-          color: var(--color-orange); outline: none; transition: all 0.2s;
-        }
-        .otp-single-box:focus { border-color: var(--color-orange); box-shadow: 0 0 12px rgba(255,107,53,0.3); background: rgba(255,107,53,0.08); }
-        
         @media (max-width: 480px) {
           .auth-card { padding: 1.5rem 1.25rem; }
           .auth-title { font-size: 1.4rem; }
-          .otp-single-box { width: 38px; height: 46px; font-size: 1.05rem; }
         }
       `}</style>
     </div>
