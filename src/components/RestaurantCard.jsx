@@ -115,6 +115,15 @@ export default function RestaurantCard({ restaurant, userLocation }) {
           font-size: 0.78rem; color: var(--color-text-muted);
           display: flex; align-items: center; gap: 3px;
         }
+
+        @media (max-width: 480px) {
+          .restaurant-img-wrap { height: 145px; }
+          .restaurant-info { padding: 10px 12px 12px; }
+          .restaurant-name { font-size: 0.92rem; }
+          .restaurant-cuisine { font-size: 0.75rem; margin-bottom: 6px; }
+          .restaurant-meta { gap: 8px; }
+          .meta-item { font-size: 0.72rem; }
+        }
       `}</style>
     </Link>
   );

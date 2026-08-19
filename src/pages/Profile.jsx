@@ -68,6 +68,11 @@ export default function Profile() {
         }
         .profile-info { width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; }
         .info-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 10px 14px; background: var(--color-surface); border-radius: 10px; }
+
+        @media (max-width: 600px) {
+          .profile-card { padding: 1.5rem 1.15rem; border-radius: 18px; }
+          .profile-avatar { width: 68px; height: 68px; font-size: 1.75rem; }
+        }
       `}</style>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import useAuthStore from '../store/authStore';
 import useCartStore from '../store/cartStore';
@@ -8,6 +8,7 @@ export default function Navbar() {
   const { user, logout } = useAuthStore();
   const totalItems = useCartStore((s) => s.totalItems());
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -18,12 +19,16 @@ export default function Navbar() {
     logout();
     navigate('/login');
     setMobileOpen(false);
+    setMenuOpen(false);
   };
 
   const closeMobile = () => setMobileOpen(false);
 
+  const isActive = (path) => location.pathname === path;
+
   return (
     <>
+      {/* ── Top Navbar ── */}
       <nav className="navbar">
         <div className="container navbar-inner">
           {/* Logo */}
@@ -33,14 +38,14 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="navbar-links desktop-only">
-            <Link to="/restaurants" className="nav-link">Restaurants</Link>
-            {user?.role === 'customer' && <Link to="/orders" className="nav-link">My Orders</Link>}
-            {user?.role === 'owner'    && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
+            <Link to="/restaurants" className={`nav-link ${isActive('/restaurants') ? 'active' : ''}`}>Restaurants</Link>
+            {user?.role === 'customer' && <Link to="/orders" className={`nav-link ${isActive('/orders') ? 'active' : ''}`}>My Orders</Link>}
+            {user?.role === 'owner'    && <Link to="/dashboard" className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}>Dashboard</Link>}
           </div>
 
           {/* Right Actions */}
           <div className="navbar-actions">
-            {/* Quick Mobile/Desktop Cart Button */}
+            {/* Quick Cart Button */}
             {user && (
               <Link to="/cart" className="cart-btn" onClick={closeMobile} aria-label="Cart">
                 🛒
@@ -83,7 +88,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Hamburger for mobile */}
+            {/* Hamburger for mobile drawer */}
             <button
               className="hamburger"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -97,13 +102,19 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Drawer */}
+      {/* ── Mobile Top Drawer ── */}
       {mobileOpen && (
         <div className="mobile-overlay" onClick={closeMobile}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             {user && (
               <div className="drawer-user">
-                <div className="drawer-avatar">{user.name?.charAt(0).toUpperCase()}</div>
+                <div className="drawer-avatar">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    user.name?.charAt(0).toUpperCase() || 'U'
+                  )}
+                </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{user.name}</div>
                   <div className="badge badge-orange" style={{ fontSize: '0.68rem', marginTop: '2px' }}>{user.role}</div>
@@ -112,6 +123,7 @@ export default function Navbar() {
             )}
 
             <nav className="drawer-nav">
+              <Link to="/" className="drawer-link" onClick={closeMobile}>🏠 Home</Link>
               <Link to="/restaurants" className="drawer-link" onClick={closeMobile}>🍽️ Explore Restaurants</Link>
               {user && <Link to="/cart" className="drawer-link" onClick={closeMobile}>🛒 Cart {totalItems > 0 ? `(${totalItems})` : ''}</Link>}
               {user?.role === 'customer' && <Link to="/orders" className="drawer-link" onClick={closeMobile}>📦 My Orders</Link>}
@@ -139,6 +151,40 @@ export default function Navbar() {
         </div>
       )}
 
+      {/* ── Native-Style Mobile Bottom Navigation Bar ── */}
+      <div className="mobile-bottom-bar">
+        <Link to="/" className={`mbb-item ${isActive('/') ? 'active' : ''}`}>
+          <span className="mbb-icon">🏠</span>
+          <span className="mbb-label">Home</span>
+        </Link>
+        <Link to="/restaurants" className={`mbb-item ${isActive('/restaurants') ? 'active' : ''}`}>
+          <span className="mbb-icon">🍽️</span>
+          <span className="mbb-label">Explore</span>
+        </Link>
+        <Link to="/cart" className={`mbb-item mbb-cart-item ${isActive('/cart') ? 'active' : ''}`}>
+          <div className="mbb-cart-wrap">
+            <span className="mbb-icon">🛒</span>
+            {totalItems > 0 && <span className="mbb-cart-badge">{totalItems}</span>}
+          </div>
+          <span className="mbb-label">Cart</span>
+        </Link>
+        {user?.role === 'owner' ? (
+          <Link to="/dashboard" className={`mbb-item ${isActive('/dashboard') ? 'active' : ''}`}>
+            <span className="mbb-icon">🏪</span>
+            <span className="mbb-label">Dashboard</span>
+          </Link>
+        ) : (
+          <Link to={user ? "/orders" : "/login"} className={`mbb-item ${isActive('/orders') ? 'active' : ''}`}>
+            <span className="mbb-icon">📦</span>
+            <span className="mbb-label">Orders</span>
+          </Link>
+        )}
+        <Link to={user ? "/profile" : "/login"} className={`mbb-item ${isActive('/profile') || isActive('/login') ? 'active' : ''}`}>
+          <span className="mbb-icon">{user ? '👤' : '🔑'}</span>
+          <span className="mbb-label">{user ? 'Profile' : 'Login'}</span>
+        </Link>
+      </div>
+
       <style>{`
         .navbar {
           position: fixed; top: 0; left: 0; right: 0; z-index: 50;
@@ -154,7 +200,7 @@ export default function Navbar() {
         .navbar-logo { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 6px; }
         .navbar-links { display: flex; gap: 1.75rem; }
         .nav-link { color: var(--color-text-muted); font-size: 0.88rem; font-weight: 500; transition: color 0.2s; }
-        .nav-link:hover { color: var(--color-text); }
+        .nav-link:hover, .nav-link.active { color: var(--color-orange); }
         .navbar-actions { display: flex; align-items: center; gap: 8px; }
 
         /* Mobile Login Pill */
@@ -169,10 +215,7 @@ export default function Navbar() {
           font-size: 0.78rem;
           transition: all 0.2s;
         }
-        .mobile-login-btn:hover {
-          background: var(--color-orange);
-          color: white;
-        }
+        .mobile-login-btn:hover { background: var(--color-orange); color: white; }
 
         /* Cart Button */
         .cart-btn {
@@ -259,12 +302,43 @@ export default function Navbar() {
         }
         .drawer-link:hover { background: var(--color-surface-2); }
 
+        /* ── Mobile Bottom Navigation Bar ── */
+        .mobile-bottom-bar {
+          display: none;
+          position: fixed; bottom: 0; left: 0; right: 0; z-index: 45;
+          background: rgba(18, 17, 30, 0.95);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px));
+          justify-content: space-around;
+          align-items: center;
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        }
+        .mbb-item {
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 3px; padding: 4px 8px; border-radius: 8px; color: var(--color-text-muted);
+          font-size: 0.7rem; font-weight: 600; transition: all 0.2s; min-width: 52px;
+        }
+        .mbb-item.active { color: var(--color-orange); }
+        .mbb-icon { font-size: 1.25rem; line-height: 1; }
+        .mbb-label { font-size: 0.68rem; font-weight: 600; }
+        .mbb-cart-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+        .mbb-cart-badge {
+          position: absolute; top: -5px; right: -8px;
+          background: var(--color-orange); color: white;
+          border-radius: 50%; width: 15px; height: 15px;
+          font-size: 8.5px; font-weight: 800;
+          display: flex; align-items: center; justify-content: center;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
           .desktop-only { display: none !important; }
           .mobile-login-btn { display: inline-flex !important; }
           .hamburger { display: flex !important; }
           .mobile-overlay { display: block; }
+          .mobile-bottom-bar { display: flex !important; }
           .navbar-logo { font-size: 1.15rem; }
         }
       `}</style>

@@ -312,30 +312,50 @@ export default function Home() {
           .hero-grid{grid-template-columns:1fr;text-align:center;gap:1.5rem}
           .hero-sub{max-width:100%} .hero-actions{justify-content:center} .trust-badges{justify-content:center}
           .hero-visual{display:block;margin-top:1.25rem;max-width:440px;margin-left:auto;margin-right:auto}
-          .fc-top{top:-10px;left:0} .fc-bottom{bottom:-10px;right:0}
+          .fc-top{top:8px;left:8px} .fc-bottom{bottom:8px;right:8px}
           .stats-grid{grid-template-columns:repeat(2,1fr)}
           .cuisines-grid{grid-template-columns:repeat(4,1fr)} .steps-grid{grid-template-columns:1fr}
           .features-grid{grid-template-columns:repeat(2,1fr)} .reviews-grid{grid-template-columns:1fr}
         }
         @media(max-width:600px){
-          .hero { padding: calc(65px + max(env(safe-area-inset-top, 0px), 10px)) 0 2.5rem; }
-          .hero-title { font-size: clamp(1.75rem, 7.5vw, 2.4rem); margin-bottom: 0.75rem; }
-          .hero-badge { font-size: 0.75rem; padding: 5px 12px; margin-bottom: 0.75rem; }
-          .hero-sub { font-size: 0.88rem; margin-bottom: 1.25rem; line-height: 1.5; }
+          .hero { padding: calc(55px + max(env(safe-area-inset-top, 0px), 8px)) 0 2rem; min-height: auto; }
+          .hero-title { font-size: clamp(1.65rem, 7vw, 2.2rem); margin-bottom: 0.75rem; }
+          .hero-badge { font-size: 0.72rem; padding: 4px 12px; margin-bottom: 0.75rem; }
+          .hero-sub { font-size: 0.85rem; margin-bottom: 1.25rem; line-height: 1.5; }
           .hero-actions { flex-direction: column; gap: 8px; width: 100%; max-width: 320px; margin: 0 auto; }
-          .hero-actions .btn { width: 100%; padding: 11px 18px; font-size: 0.9rem; }
-          .trust-badges { flex-direction: column; gap: 6px; font-size: 0.76rem; margin-top: 1rem; }
-          .cuisines-section { padding: 2.5rem 0; }
-          .cuisines-grid{grid-template-columns:repeat(4,1fr); gap: 8px;}
-          .cuisine-card { padding: 0.85rem 0.5rem; gap: 6px; }
-          .cuisine-emoji { font-size: 1.6rem; }
-          .cuisine-label { font-size: 0.72rem; }
-          .features-grid{grid-template-columns:1fr}
-          .stats-grid{grid-template-columns:repeat(2,1fr); gap: 8px;}
-          .stat-card { padding: 1.25rem 1rem; }
-          .stat-value { font-size: 1.75rem; }
-          .cta-card{padding:2.5rem 1.25rem}
-          .cta-title { font-size: 1.6rem; }
+          .hero-actions .btn { width: 100%; padding: 12px 18px; font-size: 0.9rem; border-radius: 12px; }
+          .trust-badges { flex-direction: column; gap: 6px; font-size: 0.74rem; margin-top: 1rem; }
+          
+          .hero-visual { max-width: 100%; padding: 0 8px; }
+          .hero-img { border-radius: 20px; }
+          .float-card { padding: 6px 12px; font-size: 1.1rem; border-radius: 10px; }
+          .fc-top { top: 10px; left: 14px; }
+          .fc-bottom { bottom: 10px; right: 14px; }
+
+          .cuisines-section { padding: 2rem 0; }
+          .cuisines-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+          .cuisine-card { padding: 0.75rem 0.4rem; gap: 4px; border-radius: 12px; }
+          .cuisine-emoji { font-size: 1.5rem; }
+          .cuisine-label { font-size: 0.68rem; }
+          
+          .features-section { padding: 3rem 0; }
+          .features-grid { grid-template-columns: 1fr; gap: 10px; }
+          .feature-card { padding: 1.25rem; border-radius: 14px; }
+
+          .how-section { padding: 3rem 0; }
+          .step-card { padding: 1.75rem 1.25rem; }
+          .step-num { font-size: 3rem; }
+
+          .stats-section { padding: 2rem 0; }
+          .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .stat-card { padding: 1.1rem 0.75rem; border-radius: 14px; }
+          .stat-value { font-size: 1.6rem; }
+          .stat-label { font-size: 0.75rem; }
+
+          .cta-section { padding: 3rem 0; }
+          .cta-card { padding: 2rem 1.15rem; border-radius: 20px; }
+          .cta-title { font-size: 1.45rem; }
+          .cta-sub { font-size: 0.88rem; margin-bottom: 1.5rem; }
         }
       `}</style>
     </div>

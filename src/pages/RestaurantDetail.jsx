@@ -134,6 +134,23 @@ export default function RestaurantDetail() {
         </div>
       </div>
 
+      {/* Mobile Sticky Floating Cart Bar */}
+      {user?.role === 'customer' && totalItems > 0 && (
+        <div className="mobile-cart-float-bar">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
+              {totalItems} {totalItems > 1 ? 'items' : 'item'} added
+            </span>
+            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
+              ₹{useCartStore.getState().subtotal()}
+            </span>
+          </div>
+          <Link to="/cart" className="btn btn-primary btn-sm" style={{ padding: '8px 16px', borderRadius: 999, fontWeight: 700 }}>
+            View Cart 🛒 →
+          </Link>
+        </div>
+      )}
+
       <CartConflictModal />
 
       <style>{`
@@ -146,6 +163,30 @@ export default function RestaurantDetail() {
         .meta-pill { background: rgba(15,14,23,0.7); backdrop-filter: blur(8px); border: 1px solid var(--color-border); padding: 4px 12px; border-radius: 100px; font-size: 0.8rem; font-weight: 500; }
         .menu-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
         .grid-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+
+        /* Floating Cart Bar for Mobile */
+        .mobile-cart-float-bar {
+          display: none;
+          position: fixed;
+          bottom: calc(64px + max(env(safe-area-inset-bottom, 0px), 6px));
+          left: 14px;
+          right: 14px;
+          z-index: 48;
+          background: linear-gradient(135deg, #FF6B35, #E94560);
+          color: white;
+          padding: 10px 16px;
+          border-radius: 16px;
+          box-shadow: 0 8px 30px rgba(255, 107, 53, 0.5);
+          align-items: center;
+          justify-content: space-between;
+          animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+        @media (max-width: 600px) {
+          .mobile-cart-float-bar { display: flex !important; }
+          .grid-menu { grid-template-columns: 1fr !important; gap: 10px !important; }
+        }
       `}</style>
     </div>
   );

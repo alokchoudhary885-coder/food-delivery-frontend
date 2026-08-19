@@ -141,6 +141,16 @@ export default function MenuItemCard({ item, restaurantId, restaurantName }) {
           color: var(--color-orange);
           border-right: 1px solid rgba(255,107,53,0.3);
         }
+
+        @media (max-width: 480px) {
+          .menu-card { padding: 10px; gap: 10px; border-radius: 14px; }
+          .menu-img-wrap { width: 80px; height: 80px; border-radius: 8px; }
+          .menu-name { font-size: 0.88rem; }
+          .menu-desc { font-size: 0.72rem; -webkit-line-clamp: 1; }
+          .menu-price { font-size: 0.95rem; }
+          .add-btn { padding: 6px 12px; font-size: 0.78rem; min-height: 32px; }
+          .qty-step-btn { width: 32px; height: 32px; }
+        }
       `}</style>
     </div>
   );

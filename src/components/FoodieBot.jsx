@@ -668,6 +668,54 @@ export default function FoodieBot() {
         }
         .bot-send-btn:hover:not(:disabled) { transform: scale(1.05); }
         .bot-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Mobile Responsive Sheet ── */
+        @media (max-width: 600px) {
+          .foodiebot-trigger-wrapper {
+            bottom: calc(68px + max(env(safe-area-inset-bottom, 0px), 8px));
+            right: 12px;
+          }
+          .foodiebot-pill-btn {
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            gap: 6px;
+          }
+          .bot-btn-text { font-size: 0.78rem; }
+          .foodiebot-window {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: 88vh !important;
+            max-height: 88vh !important;
+            border-radius: 24px 24px 0 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+          }
+          .foodiebot-input-bar {
+            padding: 8px 10px calc(8px + max(env(safe-area-inset-bottom, 0px), 8px));
+          }
+          .bot-text-input {
+            font-size: 16px !important;
+            padding: 9px 12px;
+          }
+          .message-bubble {
+            max-width: 90%;
+            font-size: 0.84rem;
+          }
+          .ai-dish-card {
+            padding: 6px;
+            gap: 8px;
+          }
+          .ai-dish-img {
+            width: 52px;
+            height: 52px;
+          }
+        }
       `}</style>
     </>
   );

@@ -385,6 +385,17 @@ export default function MyOrders() {
         .modal-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
         .modal-item:last-child { border-bottom: none; }
         .modal-bill-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.875rem; color: var(--color-text-muted); }
+
+        @media (max-width: 600px) {
+          .modal-backdrop { align-items: flex-end; padding: 0; }
+          .modal-box {
+            border-radius: 22px 22px 0 0;
+            max-height: 88vh;
+            padding: 1.25rem 1rem calc(1.25rem + max(env(safe-area-inset-bottom, 0px), 8px));
+            max-width: 100vw;
+          }
+          .order-card { padding: 1rem; }
+        }
       `}</style>
     </div>
   );
