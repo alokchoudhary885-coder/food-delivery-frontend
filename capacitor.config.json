@@ -3,7 +3,7 @@
   "appName": "FoodRush",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
+    "url": "https://food-delivery-frontend-iota-seven.vercel.app",
     "cleartext": true
   },
   "plugins": {
